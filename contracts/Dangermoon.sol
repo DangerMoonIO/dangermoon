@@ -692,7 +692,7 @@ interface IUniswapV2Router02 is IUniswapV2Router01 {
 }
 
 
-contract SafeMoon is Context, IERC20, Ownable {
+contract DangerMoon is Context, IERC20, Ownable {
     using SafeMath for uint256;
     using Address for address;
 
@@ -712,7 +712,7 @@ contract SafeMoon is Context, IERC20, Ownable {
 
     // address deadAddress = 0x000000000000000000000000000000000000dEaD;
 
-    string private _name = "SafeMoon";
+    string private _name = "DangerMoon";
     string private _symbol = "SAFEMOON";
     uint8 private _decimals = 9;
 

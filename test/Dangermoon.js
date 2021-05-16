@@ -20,12 +20,12 @@ async function logAllBalances(s) {
   console.log("\n");
 }
 
-describe("SafeMoon", function () {
+describe("DangerMoon", function () {
   beforeEach(async () => {
     [owner, alice, bob, cindy] = await ethers.getSigners();
     // Get and deploy contract
-    const SafeMoon = await ethers.getContractFactory("SafeMoon");
-    contract = await SafeMoon.deploy();
+    const DangerMoon = await ethers.getContractFactory("DangerMoon");
+    contract = await DangerMoon.deploy();
     // Burn 50% of tokens
     const burnAmount = (await contract.totalSupply()).div(2).toString();
     await contract.transfer(deadAddress, burnAmount);
