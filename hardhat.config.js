@@ -1,6 +1,6 @@
 require("@nomiclabs/hardhat-waffle");
 
-const { ALCHEMY_API_KEY, ROPSTEN_PRIVATE_KEY } = require('./secrets.json');
+const { ALCHEMY_API_KEY, PRIVATE_KEY, MNEMONIC } = require('./secrets.json');
 
 // This is a sample Hardhat task. To learn how to create your own go to
 // https://hardhat.org/guides/create-task.html
@@ -23,11 +23,26 @@ module.exports = {
   networks: {
     hardhat: {
       forking: {
-        url: `https://eth-ropsten.alchemyapi.io/v2/${ALCHEMY_API_KEY}`,
-        accounts: [`0x${ROPSTEN_PRIVATE_KEY}`],
-        // blockNumber: 5289860 // block when safemoon was deployed to BSC
-        blockNumber: 10250504 // current eth ropsten block
+        url: `https://eth-kovan.alchemyapi.io/v2/${ALCHEMY_API_KEY}`,
+        accounts: [`0x${PRIVATE_KEY}`],
+        blockNumber: 25066740  // current eth kovan block
       }
+    },
+    kovan: {
+      url: `https://eth-kovan.alchemyapi.io/v2/${ALCHEMY_API_KEY}`,
+      accounts: [`0x${PRIVATE_KEY}`]
+    },
+    mainnet: {
+      url: "https://bsc-dataseed.binance.org/",
+      chainId: 56,
+      gasPrice: 20000000000,
+      accounts: {mnemonic: MNEMONIC}
+    },
+    testnet: {
+      url: "https://data-seed-prebsc-1-s1.binance.org:8545",
+      chainId: 97,
+      gasPrice: 20000000000,
+      accounts: {mnemonic: MNEMONIC}
     }
   }
 };

@@ -1,18 +1,47 @@
 /**
-   #BEE
+  DANGERMOON
 
-   #LIQ+#RFI+#SHIB+#DOGE = #BEE
+  SafeMoon but reflection fees are randomly distributed, instead of evenly.
 
-   #SAFEMOON features:
-   3% fee auto add to the liquidity pool to locked forever when selling
-   2% fee auto distribute to all holders
-   I created a black hole so #Bee token will deflate itself in supply with every transaction
-   50% Supply is burned at start.
+  Some of you will make it to the moon before others,
+  and you will have nothing but the oracles to thank.
+
+  DANGERMOON features:
+  5% fee auto added to the liquidity pool
+  5% fee auto added to currentReflection, to be randomly distributed
+
+  50% of totalSupply is burned at start... for the culture.
+
+  Chainlink's verifiable random functions take 10 BSC blocks to respond.
+  BSC blocks are ~5 seconds, so at most, there's a distribution every ~50s.
+  currentReflection accrues in-between distributions.
+
+  You can be added to the reflection system by buying at least 100,000,000
+  DANGERMOON at a time. Make separate purchases to get more than 1 entry.
+  Entries are permanent and can receive distributions any number of times.
+  _minimumTokensForReflection can be changed as needed.
+
+  Contract pays currentReflection non-stop, until it runs out of LINK.
+  Then the currentReflection accrues 5% fees, until someone donates 0.2 LINK
+  into this contract to initiate a distribution. This LINK fee goes towards
+  paying Chainlink for a verifiable random number, on which we determine
+  the recipient. This contract gets refunded LINK (from the Chainlink
+  team) at the end of every month, and will automatically use the refund to
+  continue making more distributions.
+
+  DANGERMOON deflates itself every time the 0xdead address gets the reflection.
+  Anyone can donate 100,000,000 DANGERMOON to 0xdead to give it an entry in
+  the reflection system, thereby increasing burn rate, and making the tokens
+  scarcer for all holders. 0xdead starts with 0 entries.
+
+  It is up to the community to decide the fate of DANGERMOON, from the
+  frequency of reflection distributions, to the rate at which it is burned.
 */
 
-import "hardhat/console.sol";
+import '@chainlink/contracts/src/v0.6/VRFConsumerBase.sol';
 
 pragma solidity ^0.6.12;
+
 // SPDX-License-Identifier: Unlicensed
 interface IERC20 {
 
@@ -83,164 +112,6 @@ interface IERC20 {
     event Approval(address indexed owner, address indexed spender, uint256 value);
 }
 
-
-
-/**
- * @dev Wrappers over Solidity's arithmetic operations with added overflow
- * checks.
- *
- * Arithmetic operations in Solidity wrap on overflow. This can easily result
- * in bugs, because programmers usually assume that an overflow raises an
- * error, which is the standard behavior in high level programming languages.
- * `SafeMath` restores this intuition by reverting the transaction when an
- * operation overflows.
- *
- * Using this library instead of the unchecked operations eliminates an entire
- * class of bugs, so it's recommended to use it always.
- */
-
-library SafeMath {
-    /**
-     * @dev Returns the addition of two unsigned integers, reverting on
-     * overflow.
-     *
-     * Counterpart to Solidity's `+` operator.
-     *
-     * Requirements:
-     *
-     * - Addition cannot overflow.
-     */
-    function add(uint256 a, uint256 b) internal pure returns (uint256) {
-        uint256 c = a + b;
-        require(c >= a, "SafeMath: addition overflow");
-
-        return c;
-    }
-
-    /**
-     * @dev Returns the subtraction of two unsigned integers, reverting on
-     * overflow (when the result is negative).
-     *
-     * Counterpart to Solidity's `-` operator.
-     *
-     * Requirements:
-     *
-     * - Subtraction cannot overflow.
-     */
-    function sub(uint256 a, uint256 b) internal pure returns (uint256) {
-        return sub(a, b, "SafeMath: subtraction overflow");
-    }
-
-    /**
-     * @dev Returns the subtraction of two unsigned integers, reverting with custom message on
-     * overflow (when the result is negative).
-     *
-     * Counterpart to Solidity's `-` operator.
-     *
-     * Requirements:
-     *
-     * - Subtraction cannot overflow.
-     */
-    function sub(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
-        require(b <= a, errorMessage);
-        uint256 c = a - b;
-
-        return c;
-    }
-
-    /**
-     * @dev Returns the multiplication of two unsigned integers, reverting on
-     * overflow.
-     *
-     * Counterpart to Solidity's `*` operator.
-     *
-     * Requirements:
-     *
-     * - Multiplication cannot overflow.
-     */
-    function mul(uint256 a, uint256 b) internal pure returns (uint256) {
-        // Gas optimization: this is cheaper than requiring 'a' not being zero, but the
-        // benefit is lost if 'b' is also tested.
-        // See: https://github.com/OpenZeppelin/openzeppelin-contracts/pull/522
-        if (a == 0) {
-            return 0;
-        }
-
-        uint256 c = a * b;
-        require(c / a == b, "SafeMath: multiplication overflow");
-
-        return c;
-    }
-
-    /**
-     * @dev Returns the integer division of two unsigned integers. Reverts on
-     * division by zero. The result is rounded towards zero.
-     *
-     * Counterpart to Solidity's `/` operator. Note: this function uses a
-     * `revert` opcode (which leaves remaining gas untouched) while Solidity
-     * uses an invalid opcode to revert (consuming all remaining gas).
-     *
-     * Requirements:
-     *
-     * - The divisor cannot be zero.
-     */
-    function div(uint256 a, uint256 b) internal pure returns (uint256) {
-        return div(a, b, "SafeMath: division by zero");
-    }
-
-    /**
-     * @dev Returns the integer division of two unsigned integers. Reverts with custom message on
-     * division by zero. The result is rounded towards zero.
-     *
-     * Counterpart to Solidity's `/` operator. Note: this function uses a
-     * `revert` opcode (which leaves remaining gas untouched) while Solidity
-     * uses an invalid opcode to revert (consuming all remaining gas).
-     *
-     * Requirements:
-     *
-     * - The divisor cannot be zero.
-     */
-    function div(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
-        require(b > 0, errorMessage);
-        uint256 c = a / b;
-        // assert(a == b * c + a % b); // There is no case in which this doesn't hold
-
-        return c;
-    }
-
-    /**
-     * @dev Returns the remainder of dividing two unsigned integers. (unsigned integer modulo),
-     * Reverts when dividing by zero.
-     *
-     * Counterpart to Solidity's `%` operator. This function uses a `revert`
-     * opcode (which leaves remaining gas untouched) while Solidity uses an
-     * invalid opcode to revert (consuming all remaining gas).
-     *
-     * Requirements:
-     *
-     * - The divisor cannot be zero.
-     */
-    function mod(uint256 a, uint256 b) internal pure returns (uint256) {
-        return mod(a, b, "SafeMath: modulo by zero");
-    }
-
-    /**
-     * @dev Returns the remainder of dividing two unsigned integers. (unsigned integer modulo),
-     * Reverts with custom message when dividing by zero.
-     *
-     * Counterpart to Solidity's `%` operator. This function uses a `revert`
-     * opcode (which leaves remaining gas untouched) while Solidity uses an
-     * invalid opcode to revert (consuming all remaining gas).
-     *
-     * Requirements:
-     *
-     * - The divisor cannot be zero.
-     */
-    function mod(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
-        require(b != 0, errorMessage);
-        return a % b;
-    }
-}
 
 abstract contract Context {
     function _msgSender() internal view virtual returns (address payable) {
@@ -461,7 +332,7 @@ contract Ownable is Context {
         return _lockTime;
     }
 
-    //Locks the contract for owner for the amount of time provided
+    // Locks the contract for owner for the amount of time provided
     function lock(uint256 time) public virtual onlyOwner {
         _previousOwner = _owner;
         _owner = address(0);
@@ -469,7 +340,7 @@ contract Ownable is Context {
         emit OwnershipTransferred(_owner, address(0));
     }
 
-    //Unlocks the contract for owner when _lockTime is exceeds
+    // Unlocks the contract for owner when _lockTime is exceeds
     function unlock() public virtual {
         require(_previousOwner == msg.sender, "You don't have permission to unlock");
         require(now > _lockTime , "Contract is locked until 7 days");
@@ -495,7 +366,6 @@ interface IUniswapV2Factory {
     function setFeeTo(address) external;
     function setFeeToSetter(address) external;
 }
-
 
 // pragma solidity >=0.5.0;
 
@@ -646,8 +516,6 @@ interface IUniswapV2Router01 {
     function getAmountsIn(uint amountOut, address[] calldata path) external view returns (uint[] memory amounts);
 }
 
-
-
 // pragma solidity >=0.6.2;
 
 interface IUniswapV2Router02 is IUniswapV2Router01 {
@@ -692,45 +560,48 @@ interface IUniswapV2Router02 is IUniswapV2Router01 {
 }
 
 
-contract SafeMoon is Context, IERC20, Ownable {
-    using SafeMath for uint256;
+contract DangerMoon is Context, IERC20, Ownable, VRFConsumerBase {
+    // i really wanted to rename this DangerMath but its inherited from VRFConsumerBase :(
+    // using SafeMath for uint256;
     using Address for address;
 
-    mapping (address => uint256) private _rOwned;
-    mapping (address => uint256) private _tOwned;
-    mapping (address => mapping (address => uint256)) private _allowances;
+    mapping (address => uint256) private _balances;
+    mapping (address => uint256) private _numberOfReflectionEntries;
+    address[] private _allReflectionAddresses;
 
+    mapping (address => mapping (address => uint256)) private _allowances;
     mapping (address => bool) private _isExcludedFromFee;
 
-    mapping (address => bool) private _isExcluded;
-    address[] private _excluded;
+    uint256 public _maxTxAmount = 5000000 * 10**6 * 10**9;
+    uint256 public _minimumTokensForReflection = 10 ** 8;
+    uint256 private _tokenTotal = 1000000000 * 10**6 * 10**9;
+    uint256 private numTokensSellToAddToLiquidity = 5**5 * 10**6 * 10**9;
 
-    uint256 private constant MAX = ~uint256(0);
-    uint256 private _tTotal = 10**9 * 10**15;
-    uint256 private _rTotal = (MAX - (MAX % _tTotal));
-    uint256 private _tFeeTotal;
-
-    // address deadAddress = 0x000000000000000000000000000000000000dEaD;
-
-    string private _name = "SafeMoon";
-    string private _symbol = "SAFEMOON";
+    string private _name = "DangerMoon";
+    string private _symbol = "DANGERMOON";
     uint8 private _decimals = 9;
 
-    uint256 public _taxFee = 5;
-    uint256 private _previousTaxFee = _taxFee;
+    uint256 private _randNonce = 0;
+    uint256 private _totalReflected = 0;
+    uint256 private _currentReflection = 0;
+    uint256 private _reflectionFee = 5;
+    uint256 private _liquidityFee = 5;
 
-    uint256 public _liquidityFee = 5;
-    uint256 private _previousLiquidityFee = _liquidityFee;
+    // Added a setter for these, so we can move liquidity when something on bsc supports uniswap v3
+    IUniswapV2Router02 public uniswapV2Router;
+    address public uniswapV2Pair;
 
-    IUniswapV2Router02 public immutable uniswapV2Router;
-    address public immutable uniswapV2Pair;
-
+    bool _inDistribution;
     bool inSwapAndLiquify;
     bool public swapAndLiquifyEnabled = true;
 
-    uint256 public _maxTxAmount = 5**6 * 10**15;
-    uint256 private numTokensSellToAddToLiquidity = 5**5 * 10**15;
+    bytes32 internal keyHash;
+    uint256 internal linkFee;
 
+    event RequestedRandomness();
+    event ReflectionRecipient(address recipient, uint256 currentReflection);
+    event CurrentReflection(uint256 currentReflection);
+    event AddedReflectionEntry(address recipient);
     event MinTokensBeforeSwapUpdated(uint256 minTokensBeforeSwap);
     event SwapAndLiquifyEnabledUpdated(bool enabled);
     event SwapAndLiquify(uint256 tokensSwapped, uint256 ethReceived, uint256 tokensIntoLiqudity);
@@ -741,23 +612,30 @@ contract SafeMoon is Context, IERC20, Ownable {
         inSwapAndLiquify = false;
     }
 
-    constructor () public {
-        _rOwned[_msgSender()] = _rTotal;
+    constructor (
+      address _uniswapV2RouterAddress,
+      address _vrfCoordinator,
+      address _linkToken,
+      bytes32 _keyHash
+    ) VRFConsumerBase(_vrfCoordinator, _linkToken) public {
+        keyHash = _keyHash;
+        linkFee = 0.2 * 10 ** 18;
 
-        // IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0x05fF2B0DB69458A0750badebc4f9e13aDd608C7F);
-        IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D); // TESTING ON ROPSTEN INSTEAD
-         // Create a uniswap pair for this new token
+        _balances[_msgSender()] = _tokenTotal;
+
+        IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(_uniswapV2RouterAddress);
+        // Create a uniswap pair for this new token
         uniswapV2Pair = IUniswapV2Factory(_uniswapV2Router.factory())
             .createPair(address(this), _uniswapV2Router.WETH());
 
         // set the rest of the contract variables
         uniswapV2Router = _uniswapV2Router;
 
-        //exclude owner and this contract from fee
+        // exclude owner and this contract from fee
         _isExcludedFromFee[owner()] = true;
         _isExcludedFromFee[address(this)] = true;
 
-        emit Transfer(address(0), _msgSender(), _tTotal);
+        emit Transfer(address(0), _msgSender(), _tokenTotal);
     }
 
     function name() public view returns (string memory) {
@@ -773,12 +651,31 @@ contract SafeMoon is Context, IERC20, Ownable {
     }
 
     function totalSupply() public view override returns (uint256) {
-        return _tTotal;
+        return _tokenTotal;
+    }
+
+    function totalReflectionEntries() public view returns (uint256) {
+        return _allReflectionAddresses.length;
+    }
+
+    function totalReflected() public view returns (uint256) {
+        return _totalReflected;
+    }
+
+    function currentReflection() public view returns (uint256) {
+        return _currentReflection;
+    }
+
+    function numberOfReflectionEntries(address account) public view returns (uint256) {
+        return _numberOfReflectionEntries[account];
     }
 
     function balanceOf(address account) public view override returns (uint256) {
-        if (_isExcluded[account]) return _tOwned[account];
-        return tokenFromReflection(_rOwned[account]);
+        return _balances[account];
+    }
+
+    function linkBalance() public view returns (uint256) {
+        return LINK.balanceOf(address(this));
     }
 
     function transfer(address recipient, uint256 amount) public override returns (bool) {
@@ -797,7 +694,7 @@ contract SafeMoon is Context, IERC20, Ownable {
 
     function transferFrom(address sender, address recipient, uint256 amount) public override returns (bool) {
         _transfer(sender, recipient, amount);
-        _approve(sender, _msgSender(), _allowances[sender][_msgSender()].sub(amount, "ERC20: transfer amount exceeds allowance"));
+        _approve(sender, _msgSender(), _allowances[sender][_msgSender()].sub(amount));
         return true;
     }
 
@@ -807,76 +704,8 @@ contract SafeMoon is Context, IERC20, Ownable {
     }
 
     function decreaseAllowance(address spender, uint256 subtractedValue) public virtual returns (bool) {
-        _approve(_msgSender(), spender, _allowances[_msgSender()][spender].sub(subtractedValue, "ERC20: decreased allowance below zero"));
+        _approve(_msgSender(), spender, _allowances[_msgSender()][spender].sub(subtractedValue));
         return true;
-    }
-
-    function isExcludedFromReward(address account) public view returns (bool) {
-        return _isExcluded[account];
-    }
-
-    function totalFees() public view returns (uint256) {
-        return _tFeeTotal;
-    }
-
-    function deliver(uint256 tAmount) public {
-        address sender = _msgSender();
-        require(!_isExcluded[sender], "Excluded addresses cannot call this function");
-        (uint256 rAmount,,,,,) = _getValues(tAmount);
-        _rOwned[sender] = _rOwned[sender].sub(rAmount);
-        _rTotal = _rTotal.sub(rAmount);
-        _tFeeTotal = _tFeeTotal.add(tAmount);
-    }
-
-    function reflectionFromToken(uint256 tAmount, bool deductTransferFee) public view returns(uint256) {
-        require(tAmount <= _tTotal, "Amount must be less than supply");
-        if (!deductTransferFee) {
-            (uint256 rAmount,,,,,) = _getValues(tAmount);
-            return rAmount;
-        } else {
-            (,uint256 rTransferAmount,,,,) = _getValues(tAmount);
-            return rTransferAmount;
-        }
-    }
-
-    function tokenFromReflection(uint256 rAmount) public view returns(uint256) {
-        require(rAmount <= _rTotal, "Amount must be less than total reflections");
-        uint256 currentRate = _getRate();
-        return rAmount.div(currentRate);
-    }
-
-    function excludeFromReward(address account) public onlyOwner() {
-        // require(account != 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D, 'We can not exclude Uniswap router.');
-        require(!_isExcluded[account], "Account is already excluded");
-        if(_rOwned[account] > 0) {
-            _tOwned[account] = tokenFromReflection(_rOwned[account]);
-        }
-        _isExcluded[account] = true;
-        _excluded.push(account);
-    }
-
-    function includeInReward(address account) external onlyOwner() {
-        require(_isExcluded[account], "Account is already excluded");
-        for (uint256 i = 0; i < _excluded.length; i++) {
-            if (_excluded[i] == account) {
-                _excluded[i] = _excluded[_excluded.length - 1];
-                _tOwned[account] = 0;
-                _isExcluded[account] = false;
-                _excluded.pop();
-                break;
-            }
-        }
-    }
-
-    function _transferBothExcluded(address sender, address recipient, uint256 tAmount) private {
-        (uint256 rAmount, uint256 rTransferAmount, uint256 rFee, uint256 tTransferAmount, uint256 tFee, uint256 tLiquidity) = _getValues(tAmount);
-        _tOwned[sender] = _tOwned[sender].sub(tAmount);
-        _rOwned[sender] = _rOwned[sender].sub(rAmount);
-        _tOwned[recipient] = _tOwned[recipient].add(tTransferAmount);
-        _rOwned[recipient] = _rOwned[recipient].add(rTransferAmount);
-        _takeLiquidity(tLiquidity);
-        _reflectFee(rFee, tFee);
-        emit Transfer(sender, recipient, tTransferAmount);
     }
 
     function excludeFromFee(address account) public onlyOwner {
@@ -887,18 +716,33 @@ contract SafeMoon is Context, IERC20, Ownable {
         _isExcludedFromFee[account] = false;
     }
 
-    function setTaxFeePercent(uint256 taxFee) external onlyOwner() {
-        _taxFee = taxFee;
+    // Setter in case we move liquidity to a new router (hopefully uniswap v3 on bsc soon)
+    function setUniswapPair(address _uniswapV2RouterAddress) external onlyOwner() {
+        IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(_uniswapV2RouterAddress);
+        // Create a uniswap pair for this new token
+        uniswapV2Pair = IUniswapV2Factory(_uniswapV2Router.factory())
+            .createPair(address(this), _uniswapV2Router.WETH());
+
+        uniswapV2Router = _uniswapV2Router;
     }
 
+    // Setter in case the community wants us to crank the reflection up to 11
+    function setReflectionFeePercent(uint256 reflectionFee) external onlyOwner() {
+        _reflectionFee = reflectionFee;
+    }
+
+    // Setter in case the token moons and entries in reflection system become prohibitively expensive
+    function setMinimumTokensForReflection(uint256 _minTokensForReflection) external onlyOwner() {
+        _minimumTokensForReflection = _minTokensForReflection;
+    }
+
+    // Setter in case liquidity starts to dry up, or sucks up too much dangermoon
     function setLiquidityFeePercent(uint256 liquidityFee) external onlyOwner() {
         _liquidityFee = liquidityFee;
     }
 
     function setMaxTxPercent(uint256 maxTxPercent) external onlyOwner() {
-        _maxTxAmount = _tTotal.mul(maxTxPercent).div(
-            10**2
-        );
+        _maxTxAmount = _tokenTotal.mul(maxTxPercent).div(10**2);
     }
 
     function setSwapAndLiquifyEnabled(bool _enabled) public onlyOwner() {
@@ -906,90 +750,18 @@ contract SafeMoon is Context, IERC20, Ownable {
         emit SwapAndLiquifyEnabledUpdated(_enabled);
     }
 
-     //to recieve ETH from uniswapV2Router when swaping
+    // to recieve ETH from uniswapV2Router when swapping
     receive() external payable {}
 
-    function _reflectFee(uint256 rFee, uint256 tFee) private {
-        // NOTE i think this is where the magic happens
-        // console.log("rFee: ", rFee);
-        // console.log("tFee: ", tFee);
-        _rTotal = _rTotal.sub(rFee);
-        _tFeeTotal = _tFeeTotal.add(tFee);
+    function _getFees(uint256 amount) private view returns (uint256, uint256, uint256) {
+        uint256 reflectionFee = amount.mul(_reflectionFee).div(10**2);
+        uint256 liquidityFee = amount.mul(_liquidityFee).div(10**2);
+        uint256 amountMinusFees = amount.sub(reflectionFee).sub(liquidityFee);
+        return (amountMinusFees, reflectionFee, liquidityFee);
     }
 
-    function _getValues(uint256 tAmount) private view returns (uint256, uint256, uint256, uint256, uint256, uint256) {
-        (uint256 tTransferAmount, uint256 tFee, uint256 tLiquidity) = _getTValues(tAmount);
-        (uint256 rAmount, uint256 rTransferAmount, uint256 rFee) = _getRValues(tAmount, tFee, tLiquidity, _getRate());
-        return (rAmount, rTransferAmount, rFee, tTransferAmount, tFee, tLiquidity);
-    }
-
-    function _getTValues(uint256 tAmount) private view returns (uint256, uint256, uint256) {
-        uint256 tFee = calculateTaxFee(tAmount);
-        uint256 tLiquidity = calculateLiquidityFee(tAmount);
-        uint256 tTransferAmount = tAmount.sub(tFee).sub(tLiquidity);
-        return (tTransferAmount, tFee, tLiquidity);
-    }
-
-    function _getRValues(uint256 tAmount, uint256 tFee, uint256 tLiquidity, uint256 currentRate) private pure returns (uint256, uint256, uint256) {
-        uint256 rAmount = tAmount.mul(currentRate);
-        uint256 rFee = tFee.mul(currentRate);
-        uint256 rLiquidity = tLiquidity.mul(currentRate);
-        uint256 rTransferAmount = rAmount.sub(rFee).sub(rLiquidity);
-        return (rAmount, rTransferAmount, rFee);
-    }
-
-    function _getRate() private view returns(uint256) {
-        (uint256 rSupply, uint256 tSupply) = _getCurrentSupply();
-        return rSupply.div(tSupply);
-    }
-
-    function _getCurrentSupply() private view returns(uint256, uint256) {
-        uint256 rSupply = _rTotal;
-        uint256 tSupply = _tTotal;
-        for (uint256 i = 0; i < _excluded.length; i++) {
-            if (_rOwned[_excluded[i]] > rSupply || _tOwned[_excluded[i]] > tSupply) return (_rTotal, _tTotal);
-            rSupply = rSupply.sub(_rOwned[_excluded[i]]);
-            tSupply = tSupply.sub(_tOwned[_excluded[i]]);
-        }
-        console.log("_getCurrentSupply::rSupply", rSupply);
-        console.log("_getCurrentSupply::tSupply", tSupply);
-        if (rSupply < _rTotal.div(_tTotal)) return (_rTotal, _tTotal);
-        return (rSupply, tSupply);
-    }
-
-    function _takeLiquidity(uint256 tLiquidity) private {
-        uint256 currentRate =  _getRate();
-        uint256 rLiquidity = tLiquidity.mul(currentRate);
-        _rOwned[address(this)] = _rOwned[address(this)].add(rLiquidity);
-        if(_isExcluded[address(this)])
-            _tOwned[address(this)] = _tOwned[address(this)].add(tLiquidity);
-    }
-
-    function calculateTaxFee(uint256 _amount) private view returns (uint256) {
-        return _amount.mul(_taxFee).div(
-            10**2
-        );
-    }
-
-    function calculateLiquidityFee(uint256 _amount) private view returns (uint256) {
-        return _amount.mul(_liquidityFee).div(
-            10**2
-        );
-    }
-
-    function removeAllFee() private {
-        if(_taxFee == 0 && _liquidityFee == 0) return;
-
-        _previousTaxFee = _taxFee;
-        _previousLiquidityFee = _liquidityFee;
-
-        _taxFee = 0;
-        _liquidityFee = 0;
-    }
-
-    function restoreAllFee() private {
-        _taxFee = _previousTaxFee;
-        _liquidityFee = _previousLiquidityFee;
+    function _takeLiquidity(uint256 liquidityFee) private {
+        _balances[address(this)] = _balances[address(this)].add(liquidityFee);
     }
 
     function isExcludedFromFee(address account) public view returns(bool) {
@@ -1028,19 +800,12 @@ contract SafeMoon is Context, IERC20, Ownable {
             swapAndLiquifyEnabled
         ) {
             contractTokenBalance = numTokensSellToAddToLiquidity;
-            //add liquidity
+            // add liquidity
             swapAndLiquify(contractTokenBalance);
         }
 
-        // indicates if fee should be deducted from transfer
-        bool takeFee = true;
-
-        // if any account belongs to _isExcludedFromFee account then remove the fee
-        if(_isExcludedFromFee[from] || _isExcludedFromFee[to])
-            takeFee = false;
-
-        // transfer amount, it will take tax, burn, liquidity fee
-        _tokenTransfer(from, to, amount, takeFee);
+        // transfer amount... taking fees & distributing currentReflection as needed
+        _tokenTransfer(from, to, amount);
     }
 
     function swapAndLiquify(uint256 contractTokenBalance) private lockTheSwap {
@@ -1055,7 +820,7 @@ contract SafeMoon is Context, IERC20, Ownable {
         uint256 initialBalance = address(this).balance;
 
         // swap tokens for ETH
-        swapTokensForEth(half); // <- this breaks the ETH -> DANGERMOON swap when swap+liquify is triggered
+        swapTokensForEth(half); // <- this breaks the ETH->DANGERMOON swap when swap+liquify is triggered
 
         // how much ETH did we just swap into?
         uint256 newBalance = address(this).balance.sub(initialBalance);
@@ -1099,53 +864,85 @@ contract SafeMoon is Context, IERC20, Ownable {
         );
     }
 
-    //this method is responsible for taking all fee, if takeFee is true
-    function _tokenTransfer(address sender, address recipient, uint256 amount,bool takeFee) private {
-        if(!takeFee)
-            removeAllFee();
+    // Distribute random reflection from chainlink VRF response
+    function fulfillRandomness(bytes32 requestId, uint256 randomness) internal override {
+        bytes32 requestId2 = requestId;
+        uint256 numAddresses = _allReflectionAddresses.length;
+        uint256 randomIndex = randomness.mod(numAddresses);
+        address randomRecipient = _allReflectionAddresses[randomIndex];
+        _balances[randomRecipient] = _balances[randomRecipient].add(_currentReflection);
+        _totalReflected = _totalReflected.add(_currentReflection);
+        emit ReflectionRecipient(randomRecipient, _currentReflection);
+        _currentReflection = 0;
+        _inDistribution = false;
+    }
 
-        if (_isExcluded[sender] && !_isExcluded[recipient]) {
-            _transferFromExcluded(sender, recipient, amount);
-        } else if (!_isExcluded[sender] && _isExcluded[recipient]) {
-            _transferToExcluded(sender, recipient, amount);
-        } else if (!_isExcluded[sender] && !_isExcluded[recipient]) {
-            _transferStandard(sender, recipient, amount);
-        } else if (_isExcluded[sender] && _isExcluded[recipient]) {
-            _transferBothExcluded(sender, recipient, amount);
-        } else {
-            _transferStandard(sender, recipient, amount);
+    // Requests random number from chainlink whenever contract can afford it
+    function _maybeDistributeCurrentReflection() private returns (bytes32 requestId) {
+        // only initiate random distribution if we:
+        // - aren't already in a distribution
+        // - have enough LINK in the contract
+        if (!_inDistribution && LINK.balanceOf(address(this)) >= linkFee) {
+            _inDistribution = true;
+            _randNonce.add(1);
+            /**
+              NOTE 3rd arg isn't actually used inside chainlink
+              (according to their solutions engineer)
+              so we just pass in some psuedoRandom value here
+            */
+            uint256 psuedoRandomSeed = uint(keccak256(abi.encodePacked(now, msg.sender, _randNonce)));
+            requestRandomness(keyHash, linkFee, psuedoRandomSeed);
+            emit RequestedRandomness();
         }
-
-        if(!takeFee)
-            restoreAllFee();
     }
 
-    function _transferStandard(address sender, address recipient, uint256 tAmount) private {
-        (uint256 rAmount, uint256 rTransferAmount, uint256 rFee, uint256 tTransferAmount, uint256 tFee, uint256 tLiquidity) = _getValues(tAmount);
-        _rOwned[sender] = _rOwned[sender].sub(rAmount);
-        _rOwned[recipient] = _rOwned[recipient].add(rTransferAmount);
-        _takeLiquidity(tLiquidity);
-        _reflectFee(rFee, tFee);
-        emit Transfer(sender, recipient, tTransferAmount);
+    function _accrueReflectionFees(uint256 reflectionFee) private {
+        _currentReflection = _currentReflection.add(reflectionFee);
+        emit CurrentReflection(_currentReflection);
     }
 
-    function _transferToExcluded(address sender, address recipient, uint256 tAmount) private {
-        (uint256 rAmount, uint256 rTransferAmount, uint256 rFee, uint256 tTransferAmount, uint256 tFee, uint256 tLiquidity) = _getValues(tAmount);
-        _rOwned[sender] = _rOwned[sender].sub(rAmount);
-        _tOwned[recipient] = _tOwned[recipient].add(tTransferAmount);
-        _rOwned[recipient] = _rOwned[recipient].add(rTransferAmount);
-        _takeLiquidity(tLiquidity);
-        _reflectFee(rFee, tFee);
-        emit Transfer(sender, recipient, tTransferAmount);
+    // this method is responsible for taking all fees & distributing reflections, both as needed
+    function _tokenTransfer(address from, address to, uint256 amount) private {
+
+        // Always debit the full amount from sender's account
+        _balances[from] = _balances[from].sub(amount);
+
+        if(_isExcludedFromFee[from] || _isExcludedFromFee[to]) {
+            // no fee for excluded accounts
+            _balances[to] = _balances[to].add(amount);
+            emit Transfer(from, to, amount);
+        } else {
+            (uint256 amountMinusFees, uint256 reflectionFee, uint256 liquidityFee) = _getFees(amount);
+            /**
+              Enter recipient into reflection system if needed
+              never add uniswapV2Pair to reflection system
+            */
+            if (amount >= _minimumTokensForReflection && to != uniswapV2Pair) {
+                _allReflectionAddresses.push(to);
+                _numberOfReflectionEntries[to] = _numberOfReflectionEntries[to].add(1);
+                emit AddedReflectionEntry(to);
+            }
+            _takeLiquidity(liquidityFee);
+            _accrueReflectionFees(reflectionFee);
+            _maybeDistributeCurrentReflection();
+            _balances[to] = _balances[to].add(amountMinusFees);
+            emit Transfer(from, to, amountMinusFees);
+        }
     }
 
-    function _transferFromExcluded(address sender, address recipient, uint256 tAmount) private {
-        (uint256 rAmount, uint256 rTransferAmount, uint256 rFee, uint256 tTransferAmount, uint256 tFee, uint256 tLiquidity) = _getValues(tAmount);
-        _tOwned[sender] = _tOwned[sender].sub(tAmount);
-        _rOwned[sender] = _rOwned[sender].sub(rAmount);
-        _rOwned[recipient] = _rOwned[recipient].add(rTransferAmount);
-        _takeLiquidity(tLiquidity);
-        _reflectFee(rFee, tFee);
-        emit Transfer(sender, recipient, tTransferAmount);
+}
+
+
+contract MockDangerMoon is DangerMoon {
+
+    constructor(
+      address _uniswapV2RouterAddress,
+      address _vrfCoordinator,
+      address _linkToken,
+      bytes32 _keyHash
+    ) DangerMoon(_uniswapV2RouterAddress, _vrfCoordinator, _linkToken, _keyHash) public { }
+
+    function _fulfillRandomness(bytes32 requestId, uint256 randomness) public {
+        fulfillRandomness(requestId, randomness);
     }
 }
