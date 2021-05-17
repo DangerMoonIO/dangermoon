@@ -5,27 +5,31 @@ const time = require("./helpers/time");
 const BigNumber = require('bignumber.js');
 
 const deadAddress = '0x000000000000000000000000000000000000dead';
+const SECONDS_IN_A_DAY = 86400;
 
 let contract;
 let owner;
 let alice;
 let bob;
 
-async function logAllBalances(s) {
-  console.log("dead", (await contract.balanceOf(deadAddress)).toString());
-  console.log("owner", (await contract.balanceOf(owner.address)).toString());
-  console.log("alice", (await contract.balanceOf(alice.address)).toString());
-  console.log("bob", (await contract.balanceOf(bob.address)).toString());
-  console.log("cindy", (await contract.balanceOf(cindy.address)).toString());
+async function logAllBalances(header) {
+  console.log(header);
+  console.log("totalFees", (await contract.totalFees()).toString());
+  console.log("currentPayout", (await contract.currentPayout()).toString());
+  console.log("0xdead", (await contract.balanceOf(deadAddress)).toString());
+  console.log("0xowner", (await contract.balanceOf(owner.address)).toString());
+  console.log("0xalice", (await contract.balanceOf(alice.address)).toString());
+  console.log("0xbob", (await contract.balanceOf(bob.address)).toString());
+  console.log("0xcindy", (await contract.balanceOf(cindy.address)).toString());
   console.log("\n");
 }
 
-describe("DangerMoon", function () {
+describe("MockDangerMoon", function () {
   beforeEach(async () => {
     [owner, alice, bob, cindy] = await ethers.getSigners();
     // Get and deploy contract
-    const DangerMoon = await ethers.getContractFactory("DangerMoon");
-    contract = await DangerMoon.deploy();
+    const MockDangerMoon = await ethers.getContractFactory("MockDangerMoon");
+    contract = await MockDangerMoon.deploy();
     // Burn 50% of tokens
     const burnAmount = (await contract.totalSupply()).div(2).toString();
     await contract.transfer(deadAddress, burnAmount);
@@ -36,20 +40,25 @@ describe("DangerMoon", function () {
     const aliceBalance = await contract.balanceOf(alice.address);
     expect(aliceBalance).to.equal(0);
   });
-  it("should grant reflected tokens to holders", async () => {
-    await logAllBalances();
+  it("should payout weeks worth of reflection fees to winner", async () => {
+    await logAllBalances("init");
     // Transfer tokens from owner to A and check balance
     await contract.transfer(alice.address, 10**15);
     const aliceStartingBalance = await contract.balanceOf(alice.address);
     // Transfer tokens from owner to B and C
     await contract.transfer(bob.address, 10**15);
     await contract.transfer(cindy.address, 10**15);
-    await logAllBalances();
+    await logAllBalances("after bob and cindy get some");
     // Owner is exempt from reflection so send B->C, and see if A got more tokens
     await contract.connect(bob).transfer(cindy.address, (10**15)/2);
+    await contract.connect(cindy).transfer(alice.address, (10**15)/2);
+    await contract.connect(alice).transfer(bob.address, (10**15)/2);
     // await contract.connect(alice).transfer(cindy.address, 5000000000000);
     // await contract.connect(bob).transfer(cindy.address, );
     // see how many tokens A has
-    await logAllBalances();
+    await logAllBalances("before lotto ready");
+    await contract.turnBackTime(SECONDS_IN_A_DAY * 8)
+    await contract.connect(bob).transfer(cindy.address, 1);
+    await logAllBalances("after lotto ready");
   });
 });
