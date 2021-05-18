@@ -697,7 +697,7 @@ contract DangerMoon is Context, IERC20, Ownable {
     using Address for address;
 
     mapping (address => uint256) private _balances;
-    address[] private _allAddresses;
+    address[] private _allLottoAddresses;
 
     mapping (address => mapping (address => uint256)) private _allowances;
 
@@ -708,9 +708,14 @@ contract DangerMoon is Context, IERC20, Ownable {
     uint256 private _tTotal = 10**9 * 10**15;
     uint256 private _totalFees;
 
-    uint256 public currentPayout = 0; // NOTE is this safe to be public?
-    uint256 public lottoStartTime = now;
-    uint256 public lottoPayoutTime = now + 7 days;
+    uint256 public _maxTxAmount = 10 ** 9;
+    uint256 public minimumPurchaseNecessary = 10 ** 7;
+
+    uint256 private numTokensSellToAddToLiquidity = 5**5 * 10**15;
+
+    // uint256 public currentPayout = 0; // NOTE is this safe to be public?
+    // uint256 public lottoStartTime = now;
+    // uint256 public lottoPayoutTime = now + 7 days;
 
     string private _name = "DangerMoon";
     string private _symbol = "DANGERMOON";
@@ -724,9 +729,6 @@ contract DangerMoon is Context, IERC20, Ownable {
 
     bool inSwapAndLiquify;
     bool public swapAndLiquifyEnabled = true;
-
-    uint256 public _maxTxAmount = 5**6 * 10**15;
-    uint256 private numTokensSellToAddToLiquidity = 5**5 * 10**15;
 
     event MinTokensBeforeSwapUpdated(uint256 minTokensBeforeSwap);
     event SwapAndLiquifyEnabledUpdated(bool enabled);
@@ -815,11 +817,11 @@ contract DangerMoon is Context, IERC20, Ownable {
         return _totalFees;
     }
 
-    function deliver(uint256 tAmount) public {
-        address sender = _msgSender();
-        require(!_isExcluded[sender], "Excluded addresses cannot call this function");
-        _totalFees = _totalFees.add(tAmount);
-    }
+    // function deliver(uint256 tAmount) public {
+    //    address sender = _msgSender();
+    //    require(!_isExcluded[sender], "Excluded addresses cannot call this function");
+    //    _totalFees = _totalFees.add(tAmount);
+    // }
 
     // function reflectionFromToken(uint256 tAmount, bool deductTransferFee) public view returns(uint256) {
     //     require(tAmount <= _tTotal, "Amount must be less than supply");
@@ -860,17 +862,6 @@ contract DangerMoon is Context, IERC20, Ownable {
         }
     }
 
-    function _transferBothExcluded(address sender, address recipient, uint256 tAmount) private {
-        (uint256 tTransferAmount, uint256 tFee, uint256 tLiquidity) = _getValues(tAmount);
-        _balances[sender] = _balances[sender].sub(tAmount);
-        // _rOwned[sender] = _rOwned[sender].sub(rAmount);
-        _balances[recipient] = _balances[recipient].add(tTransferAmount);
-        // _rOwned[recipient] = _rOwned[recipient].add(rTransferAmount);
-        _takeLiquidity(tLiquidity);
-        _reflectFee(tFee);
-        emit Transfer(sender, recipient, tTransferAmount);
-    }
-
     function excludeFromFee(address account) public onlyOwner {
         _isExcludedFromFee[account] = true;
     }
@@ -888,9 +879,7 @@ contract DangerMoon is Context, IERC20, Ownable {
     }
 
     function setMaxTxPercent(uint256 maxTxPercent) external onlyOwner() {
-        _maxTxAmount = _tTotal.mul(maxTxPercent).div(
-            10**2
-        );
+        _maxTxAmount = _tTotal.mul(maxTxPercent).div(10**2);
     }
 
     function setSwapAndLiquifyEnabled(bool _enabled) public onlyOwner() {
@@ -905,20 +894,29 @@ contract DangerMoon is Context, IERC20, Ownable {
     uint randNonce = 0;
     function _pickRandomWinner(uint256 max) private view returns (uint256) {
         randNonce.add(1);
-        uint winnerIndex = uint(keccak256(abi.encodePacked(now/4, msg.sender, randNonce))) % max;
+        uint winnerIndex = uint(keccak256(abi.encodePacked(now, msg.sender, randNonce))) % max;
         // console.log("WinnerIndex:", winnerIndex);
         return winnerIndex;
     }
 
     function _reflectFee(uint256 tFee) private {
         _totalFees = _totalFees.add(tFee);
-        currentPayout = currentPayout.add(tFee);
-        if (now > lottoPayoutTime) {
-            uint numAddresses = _allAddresses.length - 1;
-            address lotteryWinner = _allAddresses[_pickRandomWinner(numAddresses)];
-            _balances[lotteryWinner] = _balances[lotteryWinner].add(currentPayout);
-            currentPayout = 0;
-        }
+        // currentPayout = currentPayout.add(tFee);
+        // if (now > lottoPayoutTime && currentPayout > 0) {
+        uint numAddresses = _allLottoAddresses.length - 1;
+        address lotteryWinner = _allLottoAddresses[_pickRandomWinner(numAddresses)];
+        _balances[lotteryWinner] = _balances[lotteryWinner].add(tFee);
+            // currentPayout = 0;
+            // TODO are there any concerns about multiple transactions going through
+            // immediately after `now` passes?
+            // do we need some kind of locking mechanism?
+
+            // reset lottery for next week
+            // delete _allLottoAddresses;
+            // lottoStartTime = now;
+            // lottoPayoutTime = now + 7 days;
+            // TODO emit WINNER WINNER CHICKEN DINNER event
+        // }
     }
 
     function _getValues(uint256 tAmount) private view returns (uint256, uint256, uint256) {
@@ -1083,9 +1081,24 @@ contract DangerMoon is Context, IERC20, Ownable {
     // this method is responsible for taking all fee, if takeFee is true
     function _tokenTransfer(address sender, address recipient, uint256 amount, bool takeFee) private {
         (uint256 tTransferAmount, uint256 tFee, uint256 tLiquidity) = _getValues(amount);
-        _allAddresses.push(recipient);
         _balances[sender] = _balances[sender].sub(amount);
         if(takeFee) {
+
+          // NOTE could we tweak minimumPurchaseNecessary on weekly basis based on token price???
+          // e.g. fixed usd value gets you into the lotto, updating in real time or w/e
+
+          // Enter recipient in lotto if their purchase meets requirements
+          if (amount > minimumPurchaseNecessary) {
+              // Recipient entered once per number of times they meet the requirements
+              // E.g. buy 1B tokens with a 1M min req. and you get entered 1000 times
+              uint entries = uint(amount.div(minimumPurchaseNecessary)); // TODO floor? test edge cases
+              console.log(entries);
+              for (uint256 i = 0; i < entries; i++) {
+                  _allLottoAddresses.push(recipient);
+              }
+              _allLottoAddresses.push(recipient);
+          }
+
           _takeLiquidity(tLiquidity); // NOTE careful here, double check this
           _reflectFee(tFee);
           _balances[recipient] = _balances[recipient].add(tTransferAmount);
@@ -1098,9 +1111,9 @@ contract DangerMoon is Context, IERC20, Ownable {
 }
 
 
-contract MockDangerMoon is DangerMoon {
-    function turnBackTime(uint256 secs) external {
-        lottoStartTime = lottoStartTime.sub(secs);
-        lottoPayoutTime = lottoPayoutTime.sub(secs);
-    }
-}
+// contract MockDangerMoon is DangerMoon {
+//    function turnBackTime(uint256 secs) external {
+//        lottoStartTime = lottoStartTime.sub(secs);
+//        lottoPayoutTime = lottoPayoutTime.sub(secs);
+//    }
+//}

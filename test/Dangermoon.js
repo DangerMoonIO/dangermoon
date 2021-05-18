@@ -15,7 +15,7 @@ let bob;
 async function logAllBalances(header) {
   console.log(header);
   console.log("totalFees", (await contract.totalFees()).toString());
-  console.log("currentPayout", (await contract.currentPayout()).toString());
+  // console.log("currentPayout", (await contract.currentPayout()).toString());
   console.log("0xdead", (await contract.balanceOf(deadAddress)).toString());
   console.log("0xowner", (await contract.balanceOf(owner.address)).toString());
   console.log("0xalice", (await contract.balanceOf(alice.address)).toString());
@@ -24,12 +24,12 @@ async function logAllBalances(header) {
   console.log("\n");
 }
 
-describe("MockDangerMoon", function () {
+describe("DangerMoon", function () {
   beforeEach(async () => {
     [owner, alice, bob, cindy] = await ethers.getSigners();
     // Get and deploy contract
-    const MockDangerMoon = await ethers.getContractFactory("MockDangerMoon");
-    contract = await MockDangerMoon.deploy();
+    const DangerMoon = await ethers.getContractFactory("DangerMoon");
+    contract = await DangerMoon.deploy();
     // Burn 50% of tokens
     const burnAmount = (await contract.totalSupply()).div(2).toString();
     await contract.transfer(deadAddress, burnAmount);
@@ -50,15 +50,17 @@ describe("MockDangerMoon", function () {
     await contract.transfer(cindy.address, 10**15);
     await logAllBalances("after bob and cindy get some");
     // Owner is exempt from reflection so send B->C, and see if A got more tokens
-    await contract.connect(bob).transfer(cindy.address, (10**15)/2);
-    await contract.connect(cindy).transfer(alice.address, (10**15)/2);
-    await contract.connect(alice).transfer(bob.address, (10**15)/2);
+    await contract.connect(bob).transfer(cindy.address, (10**8)/2);
+    await contract.connect(cindy).transfer(alice.address, (10**8)/2);
+    await contract.connect(alice).transfer(bob.address, (10**8)/2);
     // await contract.connect(alice).transfer(cindy.address, 5000000000000);
     // await contract.connect(bob).transfer(cindy.address, );
     // see how many tokens A has
-    await logAllBalances("before lotto ready");
-    await contract.turnBackTime(SECONDS_IN_A_DAY * 8)
+    // await logAllBalances("before lotto ready");
+    // await contract.turnBackTime(SECONDS_IN_A_DAY * 8)
     await contract.connect(bob).transfer(cindy.address, 1);
-    await logAllBalances("after lotto ready");
+    await logAllBalances("after lotto");
   });
+  // todo test minimumPurchaseNecessary
+  // todo test subsequent lottos work as intended
 });
