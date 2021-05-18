@@ -1091,13 +1091,13 @@ contract DangerMoon is Context, IERC20, Ownable {
           if (amount > minimumPurchaseNecessary) {
               // Recipient entered once per number of times they meet the requirements
               // E.g. buy 1B tokens with a 1M min req. and you get entered 1000 times
-              console.log("aqui");
+              // console.log("aqui");
               uint entries = uint(amount.div(minimumPurchaseNecessary)); // TODO floor? test edge cases
-              console.log(amount);
-              console.log("divided by");
-              console.log(minimumPurchaseNecessary);
-              console.log("=");
-              console.log(entries);
+              // console.log(amount);
+              // console.log("divided by");
+              // console.log(minimumPurchaseNecessary);
+              // console.log("=");
+              // console.log(entries);
               for (uint256 i = 0; i < entries; i++) {
                   _allLottoAddresses.push(recipient);
               }
