@@ -59,7 +59,7 @@ describe("DangerMoon", function () {
     // Transfer tokens from owner to B and C
     await contract.transfer(bob.address, 10**10);
     await contract.transfer(cindy.address, 10**10);
-    await logAllBalances("after bob and cindy get some");
+    // await logAllBalances("after bob and cindy get some");
     await expectAllBalances( // assert no payouts yet because owner exempt from fees
       "0",
       "500000000000000000000000",
@@ -70,14 +70,26 @@ describe("DangerMoon", function () {
     );
     // Owner is exempt from reflection so send B->C, and see that someone won lotto
     await contract.connect(bob).transfer(cindy.address, (10**10));
-    await logAllBalances("after lotto");
+    // await contract.connect(bob).transfer(cindy.address, (10**10));
+    // await logAllBalances("after lotto 1");
     await expectAllBalances( // assert cindy won all the take fees
-      "500000000",
+      "500000000", // take fees increased
       "500000000000000000000000",
-      "499999997000000000000000",
-      "1000000000000000",
-      "999990000000000",
-      "1000009500000000"
+      "499999999999970000000000",
+      "10000000000",
+      "0",
+      "19500000000" // recieved 5% fee as lottery payout, as cindy was only participant
+    );
+    await contract.connect(alice).transfer(bob.address, (10**10));
+    // await contract.connect(bob).transfer(cindy.address, (10**10));
+    // await logAllBalances("after lotto 2");
+    await expectAllBalances( // assert cindy won all the take fees
+      "1000000000", // take fees increased
+      "500000000000000000000000",
+      "499999999999970000000000",
+      "0",
+      "9000000000",
+      "20000000000" // recieved 5% fee as lottery payout, as cindy was only participant
     );
   });
   // todo test minimumPurchaseNecessary

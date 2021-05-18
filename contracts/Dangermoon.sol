@@ -693,7 +693,7 @@ interface IUniswapV2Router02 is IUniswapV2Router01 {
 
 
 contract DangerMoon is Context, IERC20, Ownable {
-    using SafeMath for uint256;
+    using SafeMath for uint256; // I REALLY want to rename this DangerMath
     using Address for address;
 
     mapping (address => uint256) private _balances;
@@ -708,21 +708,18 @@ contract DangerMoon is Context, IERC20, Ownable {
     uint256 private _tTotal = 10**9 * 10**15;
     uint256 private _totalFees;
 
-    uint256 public _maxTxAmount = 10 ** 10;
+    uint256 public _maxTxAmount = 5000000 * 10**6 * 10**9;
     uint256 public minimumPurchaseNecessary = 10 ** 8;
 
     uint256 private numTokensSellToAddToLiquidity = 5**5 * 10**15;
-
-    // uint256 public currentPayout = 0; // NOTE is this safe to be public?
-    // uint256 public lottoStartTime = now;
-    // uint256 public lottoPayoutTime = now + 7 days;
 
     string private _name = "DangerMoon";
     string private _symbol = "DANGERMOON";
     uint8 private _decimals = 9;
 
-    uint256 public _taxFee = 5;
+    uint256 public _lottoFee = 5;
     uint256 public _liquidityFee = 5;
+    // TODO chainlink fee?
 
     IUniswapV2Router02 public immutable uniswapV2Router;
     address public immutable uniswapV2Pair;
@@ -817,34 +814,15 @@ contract DangerMoon is Context, IERC20, Ownable {
         return _totalFees;
     }
 
+    // TODO who calls this? what is this for?
     // function deliver(uint256 tAmount) public {
     //    address sender = _msgSender();
     //    require(!_isExcluded[sender], "Excluded addresses cannot call this function");
     //    _totalFees = _totalFees.add(tAmount);
     // }
 
-    // function reflectionFromToken(uint256 tAmount, bool deductTransferFee) public view returns(uint256) {
-    //     require(tAmount <= _tTotal, "Amount must be less than supply");
-    //     if (!deductTransferFee) {
-    //         (uint256 rAmount,,,,,) = _getValues(tAmount);
-    //         return rAmount;
-    //     } else {
-    //         (,uint256 rTransferAmount,,,,) = _getValues(tAmount);
-    //         return rTransferAmount;
-    //     }
-    // }
-
-    // function tokenFromReflection(uint256 rAmount) public view returns(uint256) {
-    //     require(rAmount <= _rTotal, "Amount must be less than total reflections");
-    //     uint256 currentRate = _getRate();
-    //     return rAmount.div(currentRate);
-    // }
-
     function excludeFromReward(address account) public onlyOwner() {
         require(!_isExcluded[account], "Account is already excluded");
-        // if(_rOwned[account] > 0) {
-        //     _balances[account] = tokenFromReflection(_rOwned[account]);
-        // }
         _isExcluded[account] = true;
         _excluded.push(account);
     }
@@ -870,11 +848,11 @@ contract DangerMoon is Context, IERC20, Ownable {
         _isExcludedFromFee[account] = false;
     }
 
-    function setTaxFeePercent(uint256 taxFee) external onlyOwner() {
-        _taxFee = taxFee;
+    function setLottoFeePercent(uint256 lottoFee) external onlyOwner() {
+        _lottoFee = lottoFee;
     }
 
-    function setLiquidityFeePercent(uint256 liquidityFee) external onlyOwner() {
+    function seliquidityFeeFeePercent(uint256 liquidityFee) external onlyOwner() {
         _liquidityFee = liquidityFee;
     }
 
@@ -894,79 +872,43 @@ contract DangerMoon is Context, IERC20, Ownable {
     uint randNonce = 0;
     function _pickRandomWinner(uint256 max) private view returns (uint256) {
         randNonce.add(1);
-        uint winnerIndex = uint(keccak256(abi.encodePacked(now, msg.sender, randNonce))) % max;
+        uint winnerIndex = uint(keccak256(abi.encodePacked(now/2, msg.sender, randNonce))) % max;
         // console.log("WinnerIndex:", winnerIndex);
         return winnerIndex;
     }
 
-    function _reflectFee(uint256 tFee) private {
-        _totalFees = _totalFees.add(tFee);
-        // currentPayout = currentPayout.add(tFee);
-        // if (now > lottoPayoutTime && currentPayout > 0) {
-        uint numAddresses = _allLottoAddresses.length - 1;
+    function _payoutLottoWinner(uint256 lottoFee) private {
+        _totalFees = _totalFees.add(lottoFee);
+        uint numAddresses = _allLottoAddresses.length;
         address lotteryWinner = _allLottoAddresses[_pickRandomWinner(numAddresses)];
-        _balances[lotteryWinner] = _balances[lotteryWinner].add(tFee);
-            // currentPayout = 0;
-            // TODO are there any concerns about multiple transactions going through
-            // immediately after `now` passes?
-            // do we need some kind of locking mechanism?
-
-            // reset lottery for next week
-            // delete _allLottoAddresses;
-            // lottoStartTime = now;
-            // lottoPayoutTime = now + 7 days;
-            // TODO emit WINNER WINNER CHICKEN DINNER event
-        // }
+        _balances[lotteryWinner] = _balances[lotteryWinner].add(lottoFee);
     }
 
-    function _getValues(uint256 tAmount) private view returns (uint256, uint256, uint256) {
-        (uint256 tTransferAmount, uint256 tFee, uint256 tLiquidity) = _getTValues(tAmount);
-        // (uint256 rAmount, uint256 rTransferAmount, uint256 rFee) = _getRValues(tAmount, tFee, tLiquidity, _getRate());
-        return (tTransferAmount, tFee, tLiquidity);
+    function _getFees(uint256 tAmount) private view returns (uint256, uint256, uint256) {
+        uint256 lottoFee = calculateLottoFee(tAmount);
+        uint256 liquidityFee = calculateLiquidityFee(tAmount);
+        uint256 amountMinusFees = tAmount.sub(lottoFee).sub(liquidityFee);
+        return (amountMinusFees, lottoFee, liquidityFee);
     }
-
-    function _getTValues(uint256 tAmount) private view returns (uint256, uint256, uint256) {
-        uint256 tFee = calculateTaxFee(tAmount);
-        uint256 tLiquidity = calculateLiquidityFee(tAmount);
-        uint256 tTransferAmount = tAmount.sub(tFee).sub(tLiquidity);
-        return (tTransferAmount, tFee, tLiquidity);
-    }
-
-    // function _getRValues(uint256 tAmount, uint256 tFee, uint256 tLiquidity, uint256 currentRate) private pure returns (uint256, uint256, uint256) {
-    //     uint256 rAmount = tAmount.mul(currentRate);
-    //     uint256 rFee = tFee.mul(currentRate);
-    //     uint256 rLiquidity = tLiquidity.mul(currentRate);
-    //     uint256 rTransferAmount = rAmount.sub(rFee).sub(rLiquidity);
-    //     return (rAmount, rTransferAmount, rFee);
-    // }
-
-    // function _getRate() private view returns(uint256) {
-    //     uint256 tSupply = _getCurrentSupply();
-    //     return rSupply.div(tSupply);
-    // }
 
     function _getCurrentSupply() private view returns(uint256) {
         // uint256 rSupply = _rTotal;
         uint256 tSupply = _tTotal;
         for (uint256 i = 0; i < _excluded.length; i++) {
             if (_balances[_excluded[i]] > tSupply) return (_tTotal);
-            // rSupply = rSupply.sub(_rOwned[_excluded[i]]);
             tSupply = tSupply.sub(_balances[_excluded[i]]);
         }
         console.log("_getCurrentSupply::tSupply", tSupply);
         return tSupply;
     }
 
-    function _takeLiquidity(uint256 tLiquidity) private {
-        // uint256 currentRate =  _getRate();
-        // uint256 rLiquidity = tLiquidity.mul(currentRate);
-        // _rOwned[address(this)] = _rOwned[address(this)].add(rLiquidity);
+    function _takeLiquidity(uint256 liquidityFee) private {
         if(_isExcluded[address(this)])
-            _balances[address(this)] = _balances[address(this)].add(tLiquidity);
+            _balances[address(this)] = _balances[address(this)].add(liquidityFee);
     }
 
-    function calculateTaxFee(uint256 _amount) private view returns (uint256) {
-        return _amount.mul(_taxFee).div(10**2);
+    function calculateLottoFee(uint256 _amount) private view returns (uint256) {
+        return _amount.mul(_lottoFee).div(10**2);
     }
 
     function calculateLiquidityFee(uint256 _amount) private view returns (uint256) {
@@ -1013,13 +955,8 @@ contract DangerMoon is Context, IERC20, Ownable {
             swapAndLiquify(contractTokenBalance);
         }
 
-        // indicates if fee should be deducted from transfer
-        bool takeFee = true;
-        if(_isExcludedFromFee[from] || _isExcludedFromFee[to])
-            takeFee = false;  // no fee for excluded accounts
-
-        // transfer amount, it will take tax, burn, liquidity fee
-        _tokenTransfer(from, to, amount, takeFee);
+        // transfer amount... taking fees & paying out as needed
+        _tokenTransfer(from, to, amount);
     }
 
     function swapAndLiquify(uint256 contractTokenBalance) private lockTheSwap {
@@ -1078,47 +1015,29 @@ contract DangerMoon is Context, IERC20, Ownable {
         );
     }
 
-    // this method is responsible for taking all fee, if takeFee is true
-    function _tokenTransfer(address sender, address recipient, uint256 amount, bool takeFee) private {
-        (uint256 tTransferAmount, uint256 tFee, uint256 tLiquidity) = _getValues(amount);
-        _balances[sender] = _balances[sender].sub(amount);
+    // this method is responsible for taking all fees & paying lotto winners, both as needed
+    function _tokenTransfer(address from, address to, uint256 amount) private {
+
+        // indicates if fee should be deducted from transfer
+        bool takeFee = true;
+        if(_isExcludedFromFee[from] || _isExcludedFromFee[to])
+            takeFee = false;  // no fee for excluded accounts
+
+        _balances[from] = _balances[from].sub(amount);
         if(takeFee) {
-
-          // NOTE could we tweak minimumPurchaseNecessary on weekly basis based on token price???
-          // e.g. fixed usd value gets you into the lotto, updating in real time or w/e
-
-          // Enter recipient in lotto if their purchase meets requirements
-          if (amount > minimumPurchaseNecessary) {
-              // Recipient entered once per number of times they meet the requirements
-              // E.g. buy 1B tokens with a 1M min req. and you get entered 1000 times
-              // console.log("aqui");
-              uint entries = uint(amount.div(minimumPurchaseNecessary)); // TODO floor? test edge cases
-              // console.log(amount);
-              // console.log("divided by");
-              // console.log(minimumPurchaseNecessary);
-              // console.log("=");
-              // console.log(entries);
-              for (uint256 i = 0; i < entries; i++) {
-                  _allLottoAddresses.push(recipient);
-              }
-              _allLottoAddresses.push(recipient);
+          (uint256 amountMinusFees, uint256 lottoFee, uint256 liquidityFee) = _getFees(amount);
+          // Enter to in lotto if their purchase meets requirements
+          if (amount >= minimumPurchaseNecessary) {
+              _allLottoAddresses.push(to);
           }
-
-          _takeLiquidity(tLiquidity); // NOTE careful here, double check this
-          _reflectFee(tFee);
-          _balances[recipient] = _balances[recipient].add(tTransferAmount);
-          emit Transfer(sender, recipient, tTransferAmount);
+          _takeLiquidity(liquidityFee); // NOTE careful here, double check this
+          _payoutLottoWinner(lottoFee);
+          _balances[to] = _balances[to].add(amountMinusFees);
+          emit Transfer(from, to, amountMinusFees);
         } else {
-          _balances[recipient] = _balances[recipient].add(amount);
-          emit Transfer(sender, recipient, amount);
+          _balances[to] = _balances[to].add(amount);
+          emit Transfer(from, to, amount);
         }
     }
+
 }
-
-
-// contract MockDangerMoon is DangerMoon {
-//    function turnBackTime(uint256 secs) external {
-//        lottoStartTime = lottoStartTime.sub(secs);
-//        lottoPayoutTime = lottoPayoutTime.sub(secs);
-//    }
-//}
