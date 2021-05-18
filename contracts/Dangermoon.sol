@@ -708,8 +708,8 @@ contract DangerMoon is Context, IERC20, Ownable {
     uint256 private _tTotal = 10**9 * 10**15;
     uint256 private _totalFees;
 
-    uint256 public _maxTxAmount = 10 ** 9;
-    uint256 public minimumPurchaseNecessary = 10 ** 7;
+    uint256 public _maxTxAmount = 10 ** 10;
+    uint256 public minimumPurchaseNecessary = 10 ** 8;
 
     uint256 private numTokensSellToAddToLiquidity = 5**5 * 10**15;
 
@@ -1091,7 +1091,12 @@ contract DangerMoon is Context, IERC20, Ownable {
           if (amount > minimumPurchaseNecessary) {
               // Recipient entered once per number of times they meet the requirements
               // E.g. buy 1B tokens with a 1M min req. and you get entered 1000 times
+              console.log("aqui");
               uint entries = uint(amount.div(minimumPurchaseNecessary)); // TODO floor? test edge cases
+              console.log(amount);
+              console.log("divided by");
+              console.log(minimumPurchaseNecessary);
+              console.log("=");
               console.log(entries);
               for (uint256 i = 0; i < entries; i++) {
                   _allLottoAddresses.push(recipient);
