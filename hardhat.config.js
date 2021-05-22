@@ -1,6 +1,6 @@
 require("@nomiclabs/hardhat-waffle");
 
-const { ALCHEMY_API_KEY, ROPSTEN_PRIVATE_KEY } = require('./secrets.json');
+const { ALCHEMY_API_KEY, PRIVATE_KEY } = require('./secrets.json');
 
 // This is a sample Hardhat task. To learn how to create your own go to
 // https://hardhat.org/guides/create-task.html
@@ -23,11 +23,15 @@ module.exports = {
   networks: {
     hardhat: {
       forking: {
-        url: `https://eth-ropsten.alchemyapi.io/v2/${ALCHEMY_API_KEY}`,
-        accounts: [`0x${ROPSTEN_PRIVATE_KEY}`],
+        url: `https://eth-rinkeby.alchemyapi.io/v2/${ALCHEMY_API_KEY}`,
+        accounts: [`0x${PRIVATE_KEY}`],
         // blockNumber: 5289860 // block when safemoon was deployed to BSC
-        blockNumber: 10250504 // current eth ropsten block
+        blockNumber: 8627480 // current eth rinkeby block
       }
+    },
+    rinkeby: {
+      url: `https://eth-rinkeby.alchemyapi.io/v2/${ALCHEMY_API_KEY}`,
+      accounts: [`0x${PRIVATE_KEY}`]
     }
   }
 };

@@ -1,14 +1,19 @@
 /**
-   #BEE
+   #DANGERMOON
 
-   #LIQ+#RFI+#SHIB+#DOGE = #BEE
+   #LIQ+#RFI+#SHIB+#DOGE = #DANGERMOON
 
    #SAFEMOON features:
    3% fee auto add to the liquidity pool to locked forever when selling
    2% fee auto distribute to all holders
-   I created a black hole so #Bee token will deflate itself in supply with every transaction
-   50% Supply is burned at start.
+
+   I created a black hole so #DANGERMOON token will deflate itself in supply
+   every time the 0xdead address wins the lotto.
+
+   50% Supply is burned at start for the culture.
 */
+
+import "@chainlink/contracts/src/v0.6/VRFConsumerBase.sol";
 
 import "hardhat/console.sol";
 
@@ -83,164 +88,6 @@ interface IERC20 {
     event Approval(address indexed owner, address indexed spender, uint256 value);
 }
 
-
-
-/**
- * @dev Wrappers over Solidity's arithmetic operations with added overflow
- * checks.
- *
- * Arithmetic operations in Solidity wrap on overflow. This can easily result
- * in bugs, because programmers usually assume that an overflow raises an
- * error, which is the standard behavior in high level programming languages.
- * `SafeMath` restores this intuition by reverting the transaction when an
- * operation overflows.
- *
- * Using this library instead of the unchecked operations eliminates an entire
- * class of bugs, so it's recommended to use it always.
- */
-
-library SafeMath {
-    /**
-     * @dev Returns the addition of two unsigned integers, reverting on
-     * overflow.
-     *
-     * Counterpart to Solidity's `+` operator.
-     *
-     * Requirements:
-     *
-     * - Addition cannot overflow.
-     */
-    function add(uint256 a, uint256 b) internal pure returns (uint256) {
-        uint256 c = a + b;
-        require(c >= a, "SafeMath: addition overflow");
-
-        return c;
-    }
-
-    /**
-     * @dev Returns the subtraction of two unsigned integers, reverting on
-     * overflow (when the result is negative).
-     *
-     * Counterpart to Solidity's `-` operator.
-     *
-     * Requirements:
-     *
-     * - Subtraction cannot overflow.
-     */
-    function sub(uint256 a, uint256 b) internal pure returns (uint256) {
-        return sub(a, b, "SafeMath: subtraction overflow");
-    }
-
-    /**
-     * @dev Returns the subtraction of two unsigned integers, reverting with custom message on
-     * overflow (when the result is negative).
-     *
-     * Counterpart to Solidity's `-` operator.
-     *
-     * Requirements:
-     *
-     * - Subtraction cannot overflow.
-     */
-    function sub(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
-        require(b <= a, errorMessage);
-        uint256 c = a - b;
-
-        return c;
-    }
-
-    /**
-     * @dev Returns the multiplication of two unsigned integers, reverting on
-     * overflow.
-     *
-     * Counterpart to Solidity's `*` operator.
-     *
-     * Requirements:
-     *
-     * - Multiplication cannot overflow.
-     */
-    function mul(uint256 a, uint256 b) internal pure returns (uint256) {
-        // Gas optimization: this is cheaper than requiring 'a' not being zero, but the
-        // benefit is lost if 'b' is also tested.
-        // See: https://github.com/OpenZeppelin/openzeppelin-contracts/pull/522
-        if (a == 0) {
-            return 0;
-        }
-
-        uint256 c = a * b;
-        require(c / a == b, "SafeMath: multiplication overflow");
-
-        return c;
-    }
-
-    /**
-     * @dev Returns the integer division of two unsigned integers. Reverts on
-     * division by zero. The result is rounded towards zero.
-     *
-     * Counterpart to Solidity's `/` operator. Note: this function uses a
-     * `revert` opcode (which leaves remaining gas untouched) while Solidity
-     * uses an invalid opcode to revert (consuming all remaining gas).
-     *
-     * Requirements:
-     *
-     * - The divisor cannot be zero.
-     */
-    function div(uint256 a, uint256 b) internal pure returns (uint256) {
-        return div(a, b, "SafeMath: division by zero");
-    }
-
-    /**
-     * @dev Returns the integer division of two unsigned integers. Reverts with custom message on
-     * division by zero. The result is rounded towards zero.
-     *
-     * Counterpart to Solidity's `/` operator. Note: this function uses a
-     * `revert` opcode (which leaves remaining gas untouched) while Solidity
-     * uses an invalid opcode to revert (consuming all remaining gas).
-     *
-     * Requirements:
-     *
-     * - The divisor cannot be zero.
-     */
-    function div(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
-        require(b > 0, errorMessage);
-        uint256 c = a / b;
-        // assert(a == b * c + a % b); // There is no case in which this doesn't hold
-
-        return c;
-    }
-
-    /**
-     * @dev Returns the remainder of dividing two unsigned integers. (unsigned integer modulo),
-     * Reverts when dividing by zero.
-     *
-     * Counterpart to Solidity's `%` operator. This function uses a `revert`
-     * opcode (which leaves remaining gas untouched) while Solidity uses an
-     * invalid opcode to revert (consuming all remaining gas).
-     *
-     * Requirements:
-     *
-     * - The divisor cannot be zero.
-     */
-    function mod(uint256 a, uint256 b) internal pure returns (uint256) {
-        return mod(a, b, "SafeMath: modulo by zero");
-    }
-
-    /**
-     * @dev Returns the remainder of dividing two unsigned integers. (unsigned integer modulo),
-     * Reverts with custom message when dividing by zero.
-     *
-     * Counterpart to Solidity's `%` operator. This function uses a `revert`
-     * opcode (which leaves remaining gas untouched) while Solidity uses an
-     * invalid opcode to revert (consuming all remaining gas).
-     *
-     * Requirements:
-     *
-     * - The divisor cannot be zero.
-     */
-    function mod(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
-        require(b != 0, errorMessage);
-        return a % b;
-    }
-}
 
 abstract contract Context {
     function _msgSender() internal view virtual returns (address payable) {
@@ -692,34 +539,32 @@ interface IUniswapV2Router02 is IUniswapV2Router01 {
 }
 
 
-contract DangerMoon is Context, IERC20, Ownable {
-    using SafeMath for uint256; // I REALLY want to rename this DangerMath
+contract DangerMoon is Context, IERC20, Ownable, VRFConsumerBase {
+    // using SafeMath for uint256; // SafeMath inherited from VRFConsumerBase
     using Address for address;
 
     mapping (address => uint256) private _balances;
     address[] private _allLottoAddresses;
 
     mapping (address => mapping (address => uint256)) private _allowances;
-
     mapping (address => bool) private _isExcludedFromFee;
     mapping (address => bool) private _isExcluded;
     address[] private _excluded;
 
-    uint256 private _tTotal = 10**9 * 10**15;
-    uint256 private _totalFees;
-
     uint256 public _maxTxAmount = 5000000 * 10**6 * 10**9;
-    uint256 public minimumPurchaseNecessary = 10 ** 8;
-
+    uint256 public _minimumPurchaseNecessary = 10 ** 8; // TODO setter?
+    uint256 private _tokenTotal = 1000000000 * 10**6 * 10**9;
     uint256 private numTokensSellToAddToLiquidity = 5**5 * 10**15;
 
     string private _name = "DangerMoon";
     string private _symbol = "DANGERMOON";
     uint8 private _decimals = 9;
 
-    uint256 public _lottoFee = 5;
-    uint256 public _liquidityFee = 5;
-    // TODO chainlink fee?
+    uint256 private _randNonce = 0;
+    uint256 private _lifetimeJackpots = 0;
+    uint256 private _currentJackpot = 0;
+    uint256 private _lottoFee = 5;
+    uint256 private _liquidityFee = 5;
 
     IUniswapV2Router02 public immutable uniswapV2Router;
     address public immutable uniswapV2Pair;
@@ -727,6 +572,11 @@ contract DangerMoon is Context, IERC20, Ownable {
     bool inSwapAndLiquify;
     bool public swapAndLiquifyEnabled = true;
 
+    bytes32 internal keyHash;
+    uint256 internal linkFee;
+
+    event LotteryWinner(uint256 time, address winner, uint256 jackpot);
+    event CurrentJackpot(uint256 time, uint256 _currentJackpot);
     event MinTokensBeforeSwapUpdated(uint256 minTokensBeforeSwap);
     event SwapAndLiquifyEnabledUpdated(bool enabled);
     event SwapAndLiquify(uint256 tokensSwapped, uint256 ethReceived, uint256 tokensIntoLiqudity);
@@ -737,8 +587,26 @@ contract DangerMoon is Context, IERC20, Ownable {
         inSwapAndLiquify = false;
     }
 
-    constructor () public {
-        _balances[_msgSender()] = _tTotal;
+    constructor ()
+      // KOVAN
+      VRFConsumerBase(
+          0xb3dCcb4Cf7a26f6cf6B120Cf5A73875B7BBc655B, // VRF Coordinator
+          0x01BE23585060835E02B77ef475b0Cc51aA1e0709  // LINK Token
+      ) public {
+      // BSC MAINNET
+      // VRFConsumerBase(
+          // 0x747973a5A2a4Ae1D3a8fDF5479f1514F65Db9C31, // VRF Coordinator
+          // 0x404460C6A5EdE2D891e8297795264fDe62ADBB75  // LINK Token
+      // ) public {
+
+        // KOVAN
+        keyHash = 0x2ed0feb3e7fd2022120aa84fab1945545a9f2ffc9076fd6156fa96eaff4c1311;
+        linkFee = 0.1 * 10 ** 18;
+        // BSC MAINNET
+        // keyHash = 0x2ed0feb3e7fd2022120aa84fab1945545a9f2ffc9076fd6156fa96eaff4c1311;
+        // linkFee = 0.2 * 10 ** 18;
+
+        _balances[_msgSender()] = _tokenTotal;
 
         // IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0x05fF2B0DB69458A0750badebc4f9e13aDd608C7F);
         IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D); // TESTING ON ROPSTEN INSTEAD
@@ -753,7 +621,7 @@ contract DangerMoon is Context, IERC20, Ownable {
         _isExcludedFromFee[owner()] = true;
         _isExcludedFromFee[address(this)] = true;
 
-        emit Transfer(address(0), _msgSender(), _tTotal);
+        emit Transfer(address(0), _msgSender(), _tokenTotal);
     }
 
     function name() public view returns (string memory) {
@@ -769,10 +637,23 @@ contract DangerMoon is Context, IERC20, Ownable {
     }
 
     function totalSupply() public view override returns (uint256) {
-        return _tTotal;
+        return _tokenTotal;
+    }
+
+    function numTicketsHeld() public view returns (uint256) {
+        return _allLottoAddresses.length;
+    }
+
+    function lifetimeJackpots() public view returns (uint256) {
+        return _lifetimeJackpots;
+    }
+
+    function currentJackpot() public view returns (uint256) {
+        return _currentJackpot;
     }
 
     function balanceOf(address account) public view override returns (uint256) {
+        // console.log(uniswapV2Pair);
         return _balances[account];
     }
 
@@ -792,7 +673,7 @@ contract DangerMoon is Context, IERC20, Ownable {
 
     function transferFrom(address sender, address recipient, uint256 amount) public override returns (bool) {
         _transfer(sender, recipient, amount);
-        _approve(sender, _msgSender(), _allowances[sender][_msgSender()].sub(amount, "ERC20: transfer amount exceeds allowance"));
+        _approve(sender, _msgSender(), _allowances[sender][_msgSender()].sub(amount));
         return true;
     }
 
@@ -802,7 +683,7 @@ contract DangerMoon is Context, IERC20, Ownable {
     }
 
     function decreaseAllowance(address spender, uint256 subtractedValue) public virtual returns (bool) {
-        _approve(_msgSender(), spender, _allowances[_msgSender()][spender].sub(subtractedValue, "ERC20: decreased allowance below zero"));
+        _approve(_msgSender(), spender, _allowances[_msgSender()][spender].sub(subtractedValue));
         return true;
     }
 
@@ -810,15 +691,11 @@ contract DangerMoon is Context, IERC20, Ownable {
         return _isExcluded[account];
     }
 
-    function totalFees() public view returns (uint256) {
-        return _totalFees;
-    }
-
     // TODO who calls this? what is this for?
     // function deliver(uint256 tAmount) public {
     //    address sender = _msgSender();
     //    require(!_isExcluded[sender], "Excluded addresses cannot call this function");
-    //    _totalFees = _totalFees.add(tAmount);
+    //    _lifetimeJackpots = _lifetimeJackpots.add(tAmount);
     // }
 
     function excludeFromReward(address account) public onlyOwner() {
@@ -848,16 +725,17 @@ contract DangerMoon is Context, IERC20, Ownable {
         _isExcludedFromFee[account] = false;
     }
 
-    function setLottoFeePercent(uint256 lottoFee) external onlyOwner() {
-        _lottoFee = lottoFee;
-    }
-
-    function seliquidityFeeFeePercent(uint256 liquidityFee) external onlyOwner() {
-        _liquidityFee = liquidityFee;
-    }
+    // NOTE why would we ever change these?
+    // function setLottoFeePercent(uint256 lottoFee) external onlyOwner() {
+        // _lottoFee = lottoFee;
+    // }
+    //
+    // function seliquidityFeePercent(uint256 liquidityFee) external onlyOwner() {
+        // _liquidityFee = liquidityFee;
+    // }
 
     function setMaxTxPercent(uint256 maxTxPercent) external onlyOwner() {
-        _maxTxAmount = _tTotal.mul(maxTxPercent).div(10**2);
+        _maxTxAmount = _tokenTotal.mul(maxTxPercent).div(10**2);
     }
 
     function setSwapAndLiquifyEnabled(bool _enabled) public onlyOwner() {
@@ -868,51 +746,27 @@ contract DangerMoon is Context, IERC20, Ownable {
     // to recieve ETH from uniswapV2Router when swapping
     receive() external payable {}
 
-    // TODO chainlink
-    uint randNonce = 0;
-    function _pickRandomWinner(uint256 max) private view returns (uint256) {
-        randNonce.add(1);
-        uint winnerIndex = uint(keccak256(abi.encodePacked(now/2, msg.sender, randNonce))) % max;
-        // console.log("WinnerIndex:", winnerIndex);
-        return winnerIndex;
-    }
-
-    function _payoutLottoWinner(uint256 lottoFee) private {
-        _totalFees = _totalFees.add(lottoFee);
-        uint numAddresses = _allLottoAddresses.length;
-        address lotteryWinner = _allLottoAddresses[_pickRandomWinner(numAddresses)];
-        _balances[lotteryWinner] = _balances[lotteryWinner].add(lottoFee);
-    }
-
-    function _getFees(uint256 tAmount) private view returns (uint256, uint256, uint256) {
-        uint256 lottoFee = calculateLottoFee(tAmount);
-        uint256 liquidityFee = calculateLiquidityFee(tAmount);
-        uint256 amountMinusFees = tAmount.sub(lottoFee).sub(liquidityFee);
+    function _getFees(uint256 amount) private view returns (uint256, uint256, uint256) {
+        uint256 lottoFee =  amount.mul(_lottoFee).div(10**2);
+        uint256 liquidityFee = amount.mul(_liquidityFee).div(10**2);
+        uint256 amountMinusFees = amount.sub(lottoFee).sub(liquidityFee);
         return (amountMinusFees, lottoFee, liquidityFee);
     }
 
-    function _getCurrentSupply() private view returns(uint256) {
-        // uint256 rSupply = _rTotal;
-        uint256 tSupply = _tTotal;
-        for (uint256 i = 0; i < _excluded.length; i++) {
-            if (_balances[_excluded[i]] > tSupply) return (_tTotal);
-            tSupply = tSupply.sub(_balances[_excluded[i]]);
-        }
-        console.log("_getCurrentSupply::tSupply", tSupply);
-        return tSupply;
-    }
+    // Nothing calls this
+    // function _getCurrentSupply() private view returns(uint256) {
+        // uint256 tokenSupply = _tokenTotal;
+        // for (uint256 i = 0; i < _excluded.length; i++) {
+            // if (_balances[_excluded[i]] > tSupply) return (_tokenTotal);
+            // tokenSupply = tokenSupply.sub(_balances[_excluded[i]]);
+        // }
+        // console.log("_getCurrentSupply::tSupply", tokenSupply);
+        // return tSupply;
+    // }
 
     function _takeLiquidity(uint256 liquidityFee) private {
         if(_isExcluded[address(this)])
             _balances[address(this)] = _balances[address(this)].add(liquidityFee);
-    }
-
-    function calculateLottoFee(uint256 _amount) private view returns (uint256) {
-        return _amount.mul(_lottoFee).div(10**2);
-    }
-
-    function calculateLiquidityFee(uint256 _amount) private view returns (uint256) {
-        return _amount.mul(_liquidityFee).div(10**2);
     }
 
     function isExcludedFromFee(address account) public view returns(bool) {
@@ -955,7 +809,7 @@ contract DangerMoon is Context, IERC20, Ownable {
             swapAndLiquify(contractTokenBalance);
         }
 
-        // transfer amount... taking fees & paying out as needed
+        // transfer amount... taking fees & paying jackpots as needed
         _tokenTransfer(from, to, amount);
     }
 
@@ -971,7 +825,7 @@ contract DangerMoon is Context, IERC20, Ownable {
         uint256 initialBalance = address(this).balance;
 
         // swap tokens for ETH
-        swapTokensForEth(half); // <- this breaks the ETH -> DANGERMOON swap when swap+liquify is triggered
+        swapTokensForEth(half); // <- this breaks the ETH->DANGERMOON swap when swap+liquify is triggered
 
         // how much ETH did we just swap into?
         uint256 newBalance = address(this).balance.sub(initialBalance);
@@ -1015,28 +869,54 @@ contract DangerMoon is Context, IERC20, Ownable {
         );
     }
 
+    // Payout to random winner from chainlink response
+    function fulfillRandomness(bytes32 /*requestId*/, uint256 randomness) internal override {
+        uint256 numAddresses = _allLottoAddresses.length;
+        uint256 winnerIndex = randomness.mod(numAddresses);
+        address lotteryWinner = _allLottoAddresses[winnerIndex];
+        _balances[lotteryWinner] = _balances[lotteryWinner].add(_currentJackpot);
+        _lifetimeJackpots = _lifetimeJackpots.add(_currentJackpot);
+        emit LotteryWinner(now, lotteryWinner, _currentJackpot);
+        _currentJackpot = 0;
+    }
+
+    // Requests random winner from chainlink whenever contract can afford it
+    function _maybePayoutJackpot() private returns (bytes32 requestId) {
+        // only initiate random payout if we have enough LINK in the contract
+        if (LINK.balanceOf(address(this)) >= linkFee) {
+            _randNonce.add(1);
+            uint256 randomSeed = uint(keccak256(abi.encodePacked(now, msg.sender, _randNonce)));
+            return requestRandomness(keyHash, linkFee, randomSeed);
+        }
+    }
+
+    function _accrueLotteryFees(uint256 lottoFee) private {
+        _currentJackpot = _currentJackpot.add(lottoFee);
+        emit CurrentJackpot(now, _currentJackpot);
+    }
+
     // this method is responsible for taking all fees & paying lotto winners, both as needed
     function _tokenTransfer(address from, address to, uint256 amount) private {
 
-        // indicates if fee should be deducted from transfer
-        bool takeFee = true;
-        if(_isExcludedFromFee[from] || _isExcludedFromFee[to])
-            takeFee = false;  // no fee for excluded accounts
-
+        // Always debit the full amount from sender's account
         _balances[from] = _balances[from].sub(amount);
-        if(takeFee) {
-          (uint256 amountMinusFees, uint256 lottoFee, uint256 liquidityFee) = _getFees(amount);
-          // Enter to in lotto if their purchase meets requirements
-          if (amount >= minimumPurchaseNecessary) {
-              _allLottoAddresses.push(to);
-          }
-          _takeLiquidity(liquidityFee); // NOTE careful here, double check this
-          _payoutLottoWinner(lottoFee);
-          _balances[to] = _balances[to].add(amountMinusFees);
-          emit Transfer(from, to, amountMinusFees);
+
+        // TODO test this thoroughly
+        if(_isExcludedFromFee[from] || _isExcludedFromFee[to]) {
+            // no fee for excluded accounts
+            _balances[to] = _balances[to].add(amount);
+            emit Transfer(from, to, amount);
         } else {
-          _balances[to] = _balances[to].add(amount);
-          emit Transfer(from, to, amount);
+            (uint256 amountMinusFees, uint256 lottoFee, uint256 liquidityFee) = _getFees(amount);
+            // Enter recipient into lotto if their purchase meets requirements
+            if (amount >= _minimumPurchaseNecessary) {
+                _allLottoAddresses.push(to);
+            }
+            _takeLiquidity(liquidityFee);
+            _accrueLotteryFees(lottoFee);
+            _maybePayoutJackpot();
+            _balances[to] = _balances[to].add(amountMinusFees);
+            emit Transfer(from, to, amountMinusFees);
         }
     }
 
