@@ -15,7 +15,13 @@ async function main() {
 
   // We get the contract to deploy
   const DangerMoon = await hre.ethers.getContractFactory("DangerMoon");
-  const dangermoon = await DangerMoon.deploy();
+  // TODO double check all:
+  const dangermoon = await DangerMoon.deploy(
+    "0x05fF2B0DB69458A0750badebc4f9e13aDd608C7F", // UniswapV2RouterAddress
+    "0x747973a5A2a4Ae1D3a8fDF5479f1514F65Db9C31", // VRF Coordinator address
+    "0x404460C6A5EdE2D891e8297795264fDe62ADBB75", // Link Token Address
+    "0x2ed0feb3e7fd2022120aa84fab1945545a9f2ffc9076fd6156fa96eaff4c1311" // keyhash
+  );
 
   await dangermoon.deployed();
 

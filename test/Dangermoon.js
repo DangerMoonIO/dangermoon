@@ -39,9 +39,15 @@ async function expectAllBalances(_lifetimeJackpots, _currentJackpot, _dead, _own
 describe("DangerMoon", function () {
   beforeEach(async () => {
     [owner, alice, bob, cindy] = await ethers.getSigners();
+    console.log(typeof(owner.address));
     // Get and deploy contract
     const DangerMoon = await ethers.getContractFactory("DangerMoon");
-    contract = await DangerMoon.deploy();
+    contract = await DangerMoon.deploy(
+      "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D", // UniswapV2RouterAddress
+      "0xdD3782915140c8f3b190B5D67eAc6dc5760C46E9", // VRF Coordinator address
+      "0xa36085F69e2889c224210F603D836748e7dC0088", // Link Token Address
+      "0x6c3699283bda56ad74f6b855546325b68d482e983852a7a82979cc4807b641f4" // keyhash
+    );
     console.log("contract deployed to: ", contract.address); // Needed so we can fund via link faucet
     // Burn 50% of tokens
     const burnAmount = (await contract.totalSupply()).div(2).toString();

@@ -20,17 +20,30 @@ task("accounts", "Prints the list of accounts", async () => {
  */
 module.exports = {
   solidity: "0.6.12",
+  // solidity: {
+  //   compilers: [
+  //     {
+  //       version: "0.8.0"
+  //     },
+  //     {
+  //       version: "0.6.0"
+  //     },
+  //     {
+  //       version: "0.6.12"
+  //     }
+  //   ]
+  // },
   networks: {
     hardhat: {
       forking: {
-        url: `https://eth-rinkeby.alchemyapi.io/v2/${ALCHEMY_API_KEY}`,
+        url: `https://eth-kovan.alchemyapi.io/v2/${ALCHEMY_API_KEY}`,
         accounts: [`0x${PRIVATE_KEY}`],
         // blockNumber: 5289860 // block when safemoon was deployed to BSC
-        blockNumber: 8627480 // current eth rinkeby block
+        blockNumber: 24996607 // current eth kovan block
       }
     },
-    rinkeby: {
-      url: `https://eth-rinkeby.alchemyapi.io/v2/${ALCHEMY_API_KEY}`,
+    kovan: {
+      url: `https://eth-kovan.alchemyapi.io/v2/${ALCHEMY_API_KEY}`,
       accounts: [`0x${PRIVATE_KEY}`]
     }
   }
