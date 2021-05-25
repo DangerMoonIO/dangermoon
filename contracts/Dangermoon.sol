@@ -7,13 +7,14 @@
    3% fee auto add to the liquidity pool to locked forever when selling
    2% fee auto distribute to all holders
 
+   # TODO IS THIS TRUE?
    I created a black hole so #DANGERMOON token will deflate itself in supply
    every time the 0xdead address wins the lotto.
 
    50% Supply is burned at start for the culture.
 */
 
-import "@chainlink/contracts/src/v0.6/VRFConsumerBase.sol";
+import '@chainlink/contracts/src/v0.6/VRFConsumerBase.sol';
 import '@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol';
 import '@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol';
 import '@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router01.sol';
@@ -360,6 +361,7 @@ contract DangerMoon is Context, IERC20, Ownable, VRFConsumerBase {
     IUniswapV2Router02 public immutable uniswapV2Router;
     address public immutable uniswapV2Pair;
 
+    bool inPayout;
     bool inSwapAndLiquify;
     bool public swapAndLiquifyEnabled = true;
 
@@ -368,6 +370,7 @@ contract DangerMoon is Context, IERC20, Ownable, VRFConsumerBase {
 
     event LotteryWinner(uint256 time, address winner, uint256 jackpot);
     event CurrentJackpot(uint256 time, uint256 _currentJackpot);
+    event JoinedTheLotto(uint256 time, address winner);
     event MinTokensBeforeSwapUpdated(uint256 minTokensBeforeSwap);
     event SwapAndLiquifyEnabledUpdated(bool enabled);
     event SwapAndLiquify(uint256 tokensSwapped, uint256 ethReceived, uint256 tokensIntoLiqudity);
@@ -657,12 +660,26 @@ contract DangerMoon is Context, IERC20, Ownable, VRFConsumerBase {
         _lifetimeJackpots = _lifetimeJackpots.add(_currentJackpot);
         emit LotteryWinner(now, lotteryWinner, _currentJackpot);
         _currentJackpot = 0;
+        inPayout = false;
     }
 
     // Requests random winner from chainlink whenever contract can afford it
     function _maybePayoutJackpot() private returns (bytes32 requestId) {
-        // only initiate random payout if we have enough LINK in the contract
-        if (LINK.balanceOf(address(this)) >= linkFee) {
+
+        // console.log("Addresses:");
+        // for (uint256 i = 0; i < _allLottoAddresses.length; i++) {
+            // console.log(_allLottoAddresses[i]);
+        // }
+
+        console.log("Link Balance: ");
+        console.log(LINK.balanceOf(address(this)));
+
+        // only initiate random payout if we:
+        // - aren't already paying out
+        // - have enough LINK in the contract
+        if (!inPayout && LINK.balanceOf(address(this)) >= linkFee) {
+            console.log("Requesting payout");
+            inPayout = true;
             _randNonce.add(1);
             uint256 randomSeed = uint(keccak256(abi.encodePacked(now, msg.sender, _randNonce)));
             return requestRandomness(keyHash, linkFee, randomSeed);
@@ -690,6 +707,7 @@ contract DangerMoon is Context, IERC20, Ownable, VRFConsumerBase {
             // Enter recipient into lotto if their purchase meets requirements
             if (amount >= _minimumPurchaseNecessary) {
                 _allLottoAddresses.push(to);
+                emit JoinedTheLotto(now, to);
             }
             _takeLiquidity(liquidityFee);
             _accrueLotteryFees(lottoFee);
