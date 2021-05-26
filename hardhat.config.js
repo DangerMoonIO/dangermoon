@@ -25,13 +25,12 @@ module.exports = {
       forking: {
         url: `https://eth-kovan.alchemyapi.io/v2/${ALCHEMY_API_KEY}`,
         accounts: [`0x${PRIVATE_KEY}`],
-        // blockNumber: 5289860 // block when safemoon was deployed to BSC
-        blockNumber: 24996607 // current eth kovan block
+        blockNumber: 25066740  // current eth kovan block
       }
     },
-    kovan: {
-      url: `https://eth-kovan.alchemyapi.io/v2/${ALCHEMY_API_KEY}`,
-      accounts: [`0x${PRIVATE_KEY}`]
-    }
+    // kovan: {
+    //   url: `https://eth-kovan.alchemyapi.io/v2/${ALCHEMY_API_KEY}`,
+    //   accounts: [`0x${PRIVATE_KEY}`]
+    // }
   }
 };

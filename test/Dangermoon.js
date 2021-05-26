@@ -3,7 +3,7 @@ const { MNEMONIC } = require('../secrets.json');
 const { ethers } = require("hardhat");
 const { expect } = require("chai");
 // const utils = require("./helpers/utils");
-// const time = require("./helpers/time");
+const time = require("./helpers/time");
 
 const WETH_ADDRESS = "0xd0A1E359811322d97991E03f863a0C30C2cF029C";
 
@@ -29,7 +29,25 @@ const LINK_ABI_FRAGMENT = [
       "constant" : false,
       "outputs" : [],
       "payable" : false
-   }
+   },
+   {
+       "constant": true,
+       "inputs": [
+         {
+           "name": "_owner",
+           "type": "address"
+         }
+       ],
+       "name": "balanceOf",
+       "outputs": [
+         {
+           "name": "balance",
+           "type": "uint256"
+         }
+       ],
+       "payable": false,
+       "type": "function"
+     }
 ];
 
 // Really its uniswap v2
@@ -123,6 +141,7 @@ let owner;
 let alice;
 let bob;
 let testWallet;
+let halfTotalTokenSupply
 
 async function logAllBalances(header) {
   console.log(header);
@@ -159,7 +178,7 @@ async function buyFromUniswap(buyer, faucetEther, etherToSpend) {
     Math.floor(Date.now() / 1000),
     {
       value: ethers.utils.parseEther(etherToSpend),
-      gasPrice: 10000
+      gasPrice: 100000
     }
   );
 }
@@ -167,14 +186,14 @@ async function buyFromUniswap(buyer, faucetEther, etherToSpend) {
 describe("DangerMoon", function () {
   beforeEach(async () => {
     [owner, alice, bob, cindy] = await ethers.getSigners();
-
+    console.log(owner.address);
     // Get and deploy dangermoon
     const DangerMoon = await ethers.getContractFactory("DangerMoon");
     dangermoon = await DangerMoon.deploy(UNISWAP_ROUTER, VRF_COORDINATOR, LINK_ADDRESS, LINK_KEYHASH);
     // console.log("dangermoon deployed to: ", dangermoon.address); // Needed so we can fund via link faucet
 
     // Send 50% of tokens from deployer to 0xdead to burn them
-    const halfTotalTokenSupply = (await dangermoon.totalSupply()).div(2).toString();
+    halfTotalTokenSupply = (await dangermoon.totalSupply()).div(2).toString();
     await dangermoon.transfer(DEAD, halfTotalTokenSupply);
 
     // Set up test wallet
@@ -195,8 +214,8 @@ describe("DangerMoon", function () {
     await uniswapContract.addLiquidityETH(
       dangermoon.address,
       halfTotalTokenSupply,
-      0,
-      0,
+      0, // dont care about initial price
+      0, // dont care about initial price
       owner.address,
       Math.floor(Date.now() / 1000),
       {
@@ -207,26 +226,18 @@ describe("DangerMoon", function () {
 
     // Players a b and c go buy from uniswap
     await buyFromUniswap(alice, "0.0000001", "0.00000001");
-    await buyFromUniswap(bob, "0.0000001", "0.00000001");
+    await buyFromUniswap(bob,   "0.0000001", "0.00000001");
     await buyFromUniswap(cindy, "0.0000001", "0.00000001");
 
-    await logAllBalances("Post setup");
-
-  //   // Send in faucet link in to test the lotto
-  //   linkContract = new ethers.Contract(LINK_ADDRESS, LINK_ABI_FRAGMENT, testWallet);
-  //   // console.log("Link transfer: ",
-  //   await linkContract.transfer(
-  //     dangermoon.address,
-  //     ethers.utils.parseUnits('0.1', LINK_DECIMALS)
-  //   )
-  // // );
-  //
-  //   await buyFromUniswap(cindy, "0.0000001", "0.00000001");
-
   });
-  it("should grant half of all tokens to deployer", async () => {
+  it("should have put half the tokens in 0xdead", async () => {
+    expect(await dangermoon.balanceOf(DEAD)).to.equal(halfTotalTokenSupply);
+  });
+  it("should have put the other half of tokens in uniswap (not owner address)", async () => {
     expect(await dangermoon.balanceOf(owner.address)).to.equal(0);
-    await logAllBalances("Test 1");
+  });
+  it("should have let a b c buy from uniswap pool", async () => {
+    // await logAllBalances("Test 1");
     await expectAllBalances({
       "_lifetimeJackpots": "0",
       "_currentJackpot": "15000000000",
@@ -237,60 +248,40 @@ describe("DangerMoon", function () {
       "_cindy": "90000000000"
     });
   });
-  xit("should payout lotto fees to winner", async () => {
-    // Transfer tokens from owner to A and check balance
-    await dangermoon.transfer(alice.address, 10**10);
-    // Transfer tokens from owner to B and C
-    await dangermoon.transfer(bob.address, 10**10);
-    await dangermoon.transfer(cindy.address, 10**10);
-    await logAllBalances("after bob and cindy get some");
-    await expectAllBalances({ // assert no payouts yet because owner exempt from fees
-      "_lifetimeJackpots": "0",
-      "_currentJackpot": "0",
-      "_dead": "",
-      "_owner": "0",
-      "_alice": "90000000000",
-      "_bob": "90000000000",
-      "_cindy": "90000000000"
-    });
-    await expectAllBalances(
-      "0",
-      "0",
-      "500000000000000000000000",
-      "499999999999970000000000",
-      "10000000000",
-      "10000000000",
-      "10000000000"
+  it("should requestRandomness from chainlink once link is deposited", async () => {
+    // Send in faucet link to test the lotto
+    linkContract = new ethers.Contract(LINK_ADDRESS, LINK_ABI_FRAGMENT, owner);
+    console.log("Link transfer: ",
+      await linkContract.connect(owner).transfer(
+        dangermoon.address,
+        ethers.utils.parseUnits('0.1', LINK_DECIMALS),
+        { gasPrice: 6000000000 }
+      )
     );
-    // Owner is exempt from reflection so send B->C, and see that someone won lotto
-    await expect(dangermoon.connect(bob).transfer(cindy.address, (10**10)))
-      .to.emit(dangermoon, 'LotteryWinner')
-      .withArgs(cindy.address, (10 ** 10)/20);
 
-    // await dangermoon.connect(bob).transfer(cindy.address, (10**10));
-    await logAllBalances("after lotto 1");
-    await expectAllBalances( // assert cindy won all the take fees
-      "500000000", // take fees increased
-      "0",
-      "500000000000000000000000",
-      "499999999999970000000000",
-      "10000000000",
-      "0",
-      "19500000000" // recieved 5% fee as lottery payout, as cindy was only participant
-    );
-    // await dangermoon.connect(alice).transfer(bob.address, (10**10));
-    // // await dangermoon.connect(bob).transfer(cindy.address, (10**10));
-    // await logAllBalances("after lotto 2");
-    // await expectAllBalances( // assert cindy won all the take fees
-    //   "1000000000", // take fees increased
-    //   "0", // take fees increased
-    //   "500000000000000000000000",
-    //   "499999999999970000000000",
-    //   "0",
-    //   "9000000000",
-    //   "20000000000" // recieved 5% fee as lottery payout, as cindy was only participant
-    // );
+    // Ensure wallet has faucet link:
+    // console.log(await dangermoon.balanceOfLink(dangermoon.address));
+
+    // Give cindy some more money to go buy dangermoon to trigger the lotto request
+    await testWallet.signTransaction({
+      to: cindy.address,
+      value: ethers.utils.parseEther("0.0000001")
+    });
+
+    // Ensure cindy's buy requests a random number from chainlink
+    await expect(uniswapContract.swapETHForExactTokens(
+      100 * 10**9,
+      [WETH_ADDRESS, dangermoon.address],
+      cindy.address,
+      Math.floor(Date.now() / 1000),
+      {
+        value: ethers.utils.parseEther("0.00000001"),
+        gasPrice: 100000
+      }
+    ))
+    .to.emit(dangermoon, 'RequestedLotteryWinner');
   });
-  // todo test minimumPurchaseNecessary
-  // todo test subsequent lottos work as intended
+  // TODO test fulfillRandomness
+  // TODO test swapandliquify
+  // todo then youre done :)
 });

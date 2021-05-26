@@ -368,6 +368,7 @@ contract DangerMoon is Context, IERC20, Ownable, VRFConsumerBase {
     bytes32 internal keyHash;
     uint256 internal linkFee;
 
+    event RequestedLotteryWinner();
     event LotteryWinner(uint256 time, address winner, uint256 jackpot);
     event CurrentJackpot(uint256 time, uint256 _currentJackpot);
     event JoinedTheLotto(uint256 time, address winner);
@@ -439,10 +440,15 @@ contract DangerMoon is Context, IERC20, Ownable, VRFConsumerBase {
         return _balances[account];
     }
 
+    function balanceOfLink(address account) public view returns (uint256) {
+        return LINK.balanceOf(account);
+    }
+
     function transfer(address recipient, uint256 amount) public override returns (bool) {
         _transfer(_msgSender(), recipient, amount);
         return true;
     }
+
 
     function allowance(address owner, address spender) public view override returns (uint256) {
         return _allowances[owner][spender];
@@ -673,6 +679,8 @@ contract DangerMoon is Context, IERC20, Ownable, VRFConsumerBase {
 
         console.log("Link Balance: ");
         console.log(LINK.balanceOf(address(this)));
+        console.log(address(this).balance);
+
 
         // only initiate random payout if we:
         // - aren't already paying out
@@ -682,7 +690,8 @@ contract DangerMoon is Context, IERC20, Ownable, VRFConsumerBase {
             inPayout = true;
             _randNonce.add(1);
             uint256 randomSeed = uint(keccak256(abi.encodePacked(now, msg.sender, _randNonce)));
-            return requestRandomness(keyHash, linkFee, randomSeed);
+            requestRandomness(keyHash, linkFee, randomSeed);
+            emit RequestedLotteryWinner();
         }
     }
 
