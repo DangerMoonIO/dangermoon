@@ -15,17 +15,23 @@ async function main() {
 
   // We get the contract to deploy
   const DangerMoon = await hre.ethers.getContractFactory("DangerMoon");
-  // TODO double check all:
-  const dangermoon = await DangerMoon.deploy(
-    "0x05fF2B0DB69458A0750badebc4f9e13aDd608C7F", // UniswapV2RouterAddress
-    "0x747973a5A2a4Ae1D3a8fDF5479f1514F65Db9C31", // VRF Coordinator address
-    "0x404460C6A5EdE2D891e8297795264fDe62ADBB75", // Link Token Address
-    "0x2ed0feb3e7fd2022120aa84fab1945545a9f2ffc9076fd6156fa96eaff4c1311" // keyhash
-  );
+
+  // Same as test config for deploying to kovan
+  const UNISWAP_ROUTER = "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D";
+  const VRF_COORDINATOR = "0xdD3782915140c8f3b190B5D67eAc6dc5760C46E9";
+  const LINK_ADDRESS = '0xa36085F69e2889c224210F603D836748e7dC0088';
+  const LINK_KEYHASH = "0x6c3699283bda56ad74f6b855546325b68d482e983852a7a82979cc4807b641f4";
+  const dangermoon = await DangerMoon.deploy(UNISWAP_ROUTER, VRF_COORDINATOR, LINK_ADDRESS, LINK_KEYHASH);
 
   await dangermoon.deployed();
 
-  console.log("DangerMoon deployed to:", dangermoon.address);
+  console.log("DangerMoon deployed to kovan:", dangermoon.address);
+
+  halfTotalTokenSupply = (await dangermoon.totalSupply()).div(2).toString();
+  await dangermoon.approve(UNISWAP_ROUTER, halfTotalTokenSupply);
+
+  await dangermoon.setSwapAndLiquifyEnabled(false);
+
 }
 
 // We recommend this pattern to be able to use async/await everywhere

@@ -2,6 +2,7 @@ const CONFIG = require('../hardhat.config.js');
 const { MNEMONIC } = require('../secrets.json');
 const { ethers } = require("hardhat");
 const { expect } = require("chai");
+
 // const utils = require("./helpers/utils");
 const time = require("./helpers/time");
 
@@ -130,10 +131,44 @@ const UNISWAP_ABI_FRAGMENT = [
         }
       ],
       "payable" : true
+   },
+   {
+      "name" : "swapExactTokensForETHSupportingFeeOnTransferTokens",
+      "type" : "function",
+      "inputs" : [
+         {
+            "type" : "uint256",
+            "name" : "amountIn"
+         },
+         {
+            "type" : "uint256",
+            "name" : "amountOutMin"
+         },
+         {
+            "type" : "address[]",
+            "name" : "path"
+         },
+         {
+            "type" : "address",
+            "name" : "to"
+         },
+         {
+            "type" : "uint256",
+            "name" : "deadline"
+         }
+      ],
+      "constant" : false,
+      "outputs" : [
+        {
+           "type" : "uint256[]",
+           "name" : "amounts"
+        }
+      ],
+      "payable" : false
    }
 ];
 
-const DEAD = '0x000000000000000000000000000000000000dead';
+const DEAD = '0x000000000000000000000000000000000000dEaD';
 
 let dangermoon;
 const dangermoonDecimals = 9;
@@ -145,8 +180,8 @@ let halfTotalTokenSupply
 
 async function logAllBalances(header) {
   console.log(header);
-  console.log("lifetimeJackpots", (await dangermoon.lifetimeJackpots()).toString());
-  console.log("currentJackpot", (await dangermoon.currentJackpot()).toString());
+  console.log("lifetimeReflection", (await dangermoon.lifetimeReflection()).toString());
+  console.log("currentReflection", (await dangermoon.currentReflection()).toString());
   console.log("0xdead", (await dangermoon.balanceOf(DEAD)).toString());
   console.log("0xowner", (await dangermoon.balanceOf(owner.address)).toString());
   console.log("0xalice", (await dangermoon.balanceOf(alice.address)).toString());
@@ -156,14 +191,14 @@ async function logAllBalances(header) {
 }
 
 async function expectAllBalances(expectations) {
-  const { _lifetimeJackpots, _currentJackpot, _dead, _owner, _alice, _bob, _cindy } = expectations;
-  expect( (await dangermoon.lifetimeJackpots()).toString(), "lifetimeJackpots").to.equal(_lifetimeJackpots);
-  expect( (await dangermoon.currentJackpot()).toString(),     "currentJackpot").to.equal(_currentJackpot);
-  expect( (await dangermoon.balanceOf(DEAD)).toString(),              "0xdead").to.equal(_dead);
-  expect( (await dangermoon.balanceOf(owner.address)).toString(),      "owner").to.equal(_owner);
-  expect( (await dangermoon.balanceOf(alice.address)).toString(),      "alice").to.equal(_alice);
-  expect( (await dangermoon.balanceOf(bob.address)).toString(),          "bob").to.equal(_bob);
-  expect( (await dangermoon.balanceOf(cindy.address)).toString(),      "cindy").to.equal(_cindy);
+  const { _lifetimeReflection, _currentReflection, _dead, _owner, _alice, _bob, _cindy } = expectations;
+  expect( (await dangermoon.lifetimeReflection()).toString(), "lifetimeReflection").to.equal(_lifetimeReflection);
+  expect( (await dangermoon.currentReflection()).toString(),   "currentReflection").to.equal(_currentReflection);
+  expect( (await dangermoon.balanceOf(DEAD)).toString(),                  "0xdead").to.equal(_dead);
+  expect( (await dangermoon.balanceOf(owner.address)).toString(),          "owner").to.equal(_owner);
+  expect( (await dangermoon.balanceOf(alice.address)).toString(),          "alice").to.equal(_alice);
+  expect( (await dangermoon.balanceOf(bob.address)).toString(),              "bob").to.equal(_bob);
+  expect( (await dangermoon.balanceOf(cindy.address)).toString(),          "cindy").to.equal(_cindy);
 }
 
 async function buyFromUniswap(buyer, faucetEther, etherToSpend) {
@@ -172,7 +207,7 @@ async function buyFromUniswap(buyer, faucetEther, etherToSpend) {
     value: ethers.utils.parseEther(faucetEther)
   });
   await uniswapContract.swapETHForExactTokens(
-    100 * 10**9,
+    "1000000000000000000000",
     [WETH_ADDRESS, dangermoon.address],
     buyer.address,
     Math.floor(Date.now() / 1000),
@@ -186,15 +221,16 @@ async function buyFromUniswap(buyer, faucetEther, etherToSpend) {
 describe("DangerMoon", function () {
   beforeEach(async () => {
     [owner, alice, bob, cindy] = await ethers.getSigners();
-    console.log(owner.address);
+
     // Get and deploy dangermoon
-    const DangerMoon = await ethers.getContractFactory("DangerMoon");
-    dangermoon = await DangerMoon.deploy(UNISWAP_ROUTER, VRF_COORDINATOR, LINK_ADDRESS, LINK_KEYHASH);
-    // console.log("dangermoon deployed to: ", dangermoon.address); // Needed so we can fund via link faucet
+    const MockDangerMoon = await ethers.getContractFactory("MockDangerMoon");
+    dangermoon = await MockDangerMoon.deploy(UNISWAP_ROUTER, VRF_COORDINATOR, LINK_ADDRESS, LINK_KEYHASH);
 
     // Send 50% of tokens from deployer to 0xdead to burn them
     halfTotalTokenSupply = (await dangermoon.totalSupply()).div(2).toString();
-    await dangermoon.transfer(DEAD, halfTotalTokenSupply);
+    // We dont burn half *during testing*, because we need to simulate having
+    // a large amount of tokens in the contract for swapAndLiquify
+    // await dangermoon.transfer(DEAD, halfTotalTokenSupply);
 
     // Set up test wallet
     const rpcUrl = CONFIG.networks.hardhat.forking.url;
@@ -219,50 +255,107 @@ describe("DangerMoon", function () {
       owner.address,
       Math.floor(Date.now() / 1000),
       {
-        value: ethers.utils.parseEther("0.0002"),
+        value: ethers.utils.parseEther("0.000001"),
         gasPrice: 1000000
       }
     );
 
-    // Players a b and c go buy from uniswap
+    // a b and c go buy from uniswap
     await buyFromUniswap(alice, "0.0000001", "0.00000001");
     await buyFromUniswap(bob,   "0.0000001", "0.00000001");
     await buyFromUniswap(cindy, "0.0000001", "0.00000001");
 
   });
-  it("should have put half the tokens in 0xdead", async () => {
-    expect(await dangermoon.balanceOf(DEAD)).to.equal(halfTotalTokenSupply);
+  // it("should have put half the tokens in 0xdead", async () => {
+  //   expect(await dangermoon.balanceOf(DEAD)).to.equal(halfTotalTokenSupply);
+  // });
+  it("should grant 0xdead an entry in reflection system when someone burns 100,000,000", async () => {
+    await expect(dangermoon.connect(cindy).transfer(DEAD, 100000000))
+      .to.emit(dangermoon, "AddedReflectionEntry")
+      .withArgs(DEAD);
   });
-  it("should have put the other half of tokens in uniswap (not owner address)", async () => {
-    expect(await dangermoon.balanceOf(owner.address)).to.equal(0);
+  it("should return how many entries an address has when numberOfReflectionEntries is called", async () => {
+    await dangermoon.connect(cindy).transfer(DEAD, 100000000);
+    expect(await dangermoon.numberOfReflectionEntries(DEAD)).to.equal(1);
+  });
+  it("should have put the other half of tokens in owner address. Owner burns this on real deploy.", async () => {
+    expect(await dangermoon.balanceOf(owner.address)).to.equal(halfTotalTokenSupply);
   });
   it("should have let a b c buy from uniswap pool", async () => {
     // await logAllBalances("Test 1");
     await expectAllBalances({
-      "_lifetimeJackpots": "0",
-      "_currentJackpot": "15000000000",
-      "_dead": "500000000000000000000000",
-      "_owner": "0",
-      "_alice": "90000000000",
-      "_bob": "90000000000",
-      "_cindy": "90000000000"
+      "_lifetimeReflection": "0",
+      "_currentReflection": "150000000000000000000",
+      "_dead": "0",
+      "_owner": "500000000000000000000000",
+      "_alice": "900000000000000000000",
+      "_bob": "900000000000000000000",
+      "_cindy": "900000000000000000000"
     });
   });
+  it("should distribute reflection randomly when fulfillRandomness is called", async () => {
+    // Ensure that chainlink's response triggers a reflection distribution
+    const psuedoRandomOracleResponse = Math.floor(Math.random() * 10**10);
+    const requestId = ethers.utils.formatBytes32String("42");
+    await expect(dangermoon._fulfillRandomness(requestId, psuedoRandomOracleResponse))
+      .to.emit(dangermoon, 'ReflectionRecipient');
+
+    // await logAllBalances("Test 4");
+    // await expectAllBalances({
+    //   "_lifetimeReflection": "15000000000",
+    //   "_currentReflection": "0",
+    //   "_dead": "0",
+    //   "_owner": "500000000000000000000000",
+    //   "_alice": "90000000000",
+    //   "_bob": "90000000000",
+    //   "_cindy": "105000000000" // recieved distribution
+    // });
+  });
+  it("should swapAndLiquify 5% liquidity fees into liquidity pool", async () => {
+    /**
+      Need to get contractTokenBalance >= numTokensSellToAddToLiquidity
+      so that entails sending more than (5**5 * 10**6 * 10**9) to the contract
+    */
+    await dangermoon.connect(owner).transfer(dangermoon.address, "3125000000000000001");
+
+    // Ensure cindy's buy triggers swapAndLiquify
+    await expect(dangermoon.connect(owner).transfer(cindy.address, 1))
+      .to.emit(dangermoon, 'SwapAndLiquify');
+  });
+  it("should sell to uniswap without adding a reflection entry", async () => {
+
+    await dangermoon.connect(owner).approve(UNISWAP_ROUTER, "10000000000000000000000")
+
+    // Ensure cindy's sell to uniswap doesnt give uniswap a reflection entry
+    await expect(uniswapContract.swapExactTokensForETHSupportingFeeOnTransferTokens(
+        "100000000000000000000",
+        0, // ignore slippage
+        [dangermoon.address, WETH_ADDRESS],
+        owner.address,
+        Math.floor(Date.now() / 1000),
+        { gasPrice: 100000 }
+    ))
+    .to.not.emit(dangermoon, "AddedReflectionEntry");
+
+    // await logAllBalances("after selling to uniswap");
+
+  });
+  /**
+    NOTE This test takes the longest, and for some reason it fails if it is not the last test
+  */
   it("should requestRandomness from chainlink once link is deposited", async () => {
-    // Send in faucet link to test the lotto
+    // Send in faucet link to test requestRandomness
     linkContract = new ethers.Contract(LINK_ADDRESS, LINK_ABI_FRAGMENT, owner);
-    console.log("Link transfer: ",
-      await linkContract.connect(owner).transfer(
-        dangermoon.address,
-        ethers.utils.parseUnits('0.1', LINK_DECIMALS),
-        { gasPrice: 6000000000 }
-      )
+    await linkContract.connect(owner).transfer(
+      dangermoon.address,
+      ethers.utils.parseUnits('0.2', LINK_DECIMALS),
+      { gasPrice: 6000000000 }
     );
 
     // Ensure wallet has faucet link:
-    // console.log(await dangermoon.balanceOfLink(dangermoon.address));
+    // console.log("Link Balance: ", (await dangermoon.linkBalance()).toString());
 
-    // Give cindy some more money to go buy dangermoon to trigger the lotto request
+    // Give cindy some more money to go buy dangermoon to trigger requestRandomness
     await testWallet.signTransaction({
       to: cindy.address,
       value: ethers.utils.parseEther("0.0000001")
@@ -279,9 +372,6 @@ describe("DangerMoon", function () {
         gasPrice: 100000
       }
     ))
-    .to.emit(dangermoon, 'RequestedLotteryWinner');
+    .to.emit(dangermoon, 'RequestedRandomness');
   });
-  // TODO test fulfillRandomness
-  // TODO test swapandliquify
-  // todo then youre done :)
 });

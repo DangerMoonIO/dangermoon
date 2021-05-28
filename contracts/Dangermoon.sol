@@ -1,26 +1,44 @@
 /**
-   #DANGERMOON
+  DANGERMOON
 
-   #LIQ+#RFI+#SHIB+#DOGE = #DANGERMOON
+  SafeMoon but reflection fees are randomly distributed, instead of evenly.
 
-   #SAFEMOON features:
-   3% fee auto add to the liquidity pool to locked forever when selling
-   2% fee auto distribute to all holders
+  Some of you will make it to the moon before others,
+  and you will have nothing but the oracles to thank.
 
-   # TODO IS THIS TRUE?
-   I created a black hole so #DANGERMOON token will deflate itself in supply
-   every time the 0xdead address wins the lotto.
+  DANGERMOON features:
+  5% fee auto added to the liquidity pool
+  5% fee auto added to currentReflection, to be randomly distributed
 
-   50% Supply is burned at start for the culture.
+  50% of totalSupply is burned at start... for the culture.
+
+  Chainlink's verifiable random functions take 10 BSC blocks to respond.
+  BSC blocks are ~5 seconds, so at most, there's a distribution every ~50s.
+  currentReflection accrues in-between distributions.
+
+  You can be added to the reflection system by buying at least 100,000,000
+  DANGERMOON at a time. Make separate purchases to get more than 1 entry.
+  Entries are permanent and can receive distributions any number of times.
+  _minimumTokensForReflection can be changed as needed.
+
+  Contract pays currentReflection non-stop, until it runs out of LINK.
+  Then the currentReflection accrues 5% fees, until someone donates 0.2 LINK
+  into this contract to initiate a distribution. This LINK fee goes towards
+  paying Chainlink for a verifiable random number, on which we determine
+  the recipient. This contract gets refunded LINK (from the Chainlink
+  team) at the end of every month, and will automatically use the refund to
+  continue making more distributions.
+
+  DANGERMOON deflates itself every time the 0xdead address gets the reflection.
+  Anyone can donate 100,000,000 DANGERMOON to 0xdead to give it an entry in
+  the reflection system, thereby increasing burn rate, and making the tokens
+  scarcer for all holders. 0xdead starts with 0 entries.
+
+  It is up to the community to decide the fate of DANGERMOON, from the
+  frequency of reflection distributions, to the rate at which it is burned.
 */
 
 import '@chainlink/contracts/src/v0.6/VRFConsumerBase.sol';
-import '@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol';
-import '@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol';
-import '@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router01.sol';
-import '@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol';
-
-import "hardhat/console.sol";
 
 pragma solidity ^0.6.12;
 
@@ -314,7 +332,7 @@ contract Ownable is Context {
         return _lockTime;
     }
 
-    //Locks the contract for owner for the amount of time provided
+    // Locks the contract for owner for the amount of time provided
     function lock(uint256 time) public virtual onlyOwner {
         _previousOwner = _owner;
         _owner = address(0);
@@ -322,7 +340,7 @@ contract Ownable is Context {
         emit OwnershipTransferred(_owner, address(0));
     }
 
-    //Unlocks the contract for owner when _lockTime is exceeds
+    // Unlocks the contract for owner when _lockTime is exceeds
     function unlock() public virtual {
         require(_previousOwner == msg.sender, "You don't have permission to unlock");
         require(now > _lockTime , "Contract is locked until 7 days");
@@ -331,47 +349,259 @@ contract Ownable is Context {
     }
 }
 
+// pragma solidity >=0.5.0;
+
+interface IUniswapV2Factory {
+    event PairCreated(address indexed token0, address indexed token1, address pair, uint);
+
+    function feeTo() external view returns (address);
+    function feeToSetter() external view returns (address);
+
+    function getPair(address tokenA, address tokenB) external view returns (address pair);
+    function allPairs(uint) external view returns (address pair);
+    function allPairsLength() external view returns (uint);
+
+    function createPair(address tokenA, address tokenB) external returns (address pair);
+
+    function setFeeTo(address) external;
+    function setFeeToSetter(address) external;
+}
+
+// pragma solidity >=0.5.0;
+
+interface IUniswapV2Pair {
+    event Approval(address indexed owner, address indexed spender, uint value);
+    event Transfer(address indexed from, address indexed to, uint value);
+
+    function name() external pure returns (string memory);
+    function symbol() external pure returns (string memory);
+    function decimals() external pure returns (uint8);
+    function totalSupply() external view returns (uint);
+    function balanceOf(address owner) external view returns (uint);
+    function allowance(address owner, address spender) external view returns (uint);
+
+    function approve(address spender, uint value) external returns (bool);
+    function transfer(address to, uint value) external returns (bool);
+    function transferFrom(address from, address to, uint value) external returns (bool);
+
+    function DOMAIN_SEPARATOR() external view returns (bytes32);
+    function PERMIT_TYPEHASH() external pure returns (bytes32);
+    function nonces(address owner) external view returns (uint);
+
+    function permit(address owner, address spender, uint value, uint deadline, uint8 v, bytes32 r, bytes32 s) external;
+
+    event Mint(address indexed sender, uint amount0, uint amount1);
+    event Burn(address indexed sender, uint amount0, uint amount1, address indexed to);
+    event Swap(
+        address indexed sender,
+        uint amount0In,
+        uint amount1In,
+        uint amount0Out,
+        uint amount1Out,
+        address indexed to
+    );
+    event Sync(uint112 reserve0, uint112 reserve1);
+
+    function MINIMUM_LIQUIDITY() external pure returns (uint);
+    function factory() external view returns (address);
+    function token0() external view returns (address);
+    function token1() external view returns (address);
+    function getReserves() external view returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast);
+    function price0CumulativeLast() external view returns (uint);
+    function price1CumulativeLast() external view returns (uint);
+    function kLast() external view returns (uint);
+
+    function mint(address to) external returns (uint liquidity);
+    function burn(address to) external returns (uint amount0, uint amount1);
+    function swap(uint amount0Out, uint amount1Out, address to, bytes calldata data) external;
+    function skim(address to) external;
+    function sync() external;
+
+    function initialize(address, address) external;
+}
+
+// pragma solidity >=0.6.2;
+
+interface IUniswapV2Router01 {
+    function factory() external pure returns (address);
+    function WETH() external pure returns (address);
+
+    function addLiquidity(
+        address tokenA,
+        address tokenB,
+        uint amountADesired,
+        uint amountBDesired,
+        uint amountAMin,
+        uint amountBMin,
+        address to,
+        uint deadline
+    ) external returns (uint amountA, uint amountB, uint liquidity);
+    function addLiquidityETH(
+        address token,
+        uint amountTokenDesired,
+        uint amountTokenMin,
+        uint amountETHMin,
+        address to,
+        uint deadline
+    ) external payable returns (uint amountToken, uint amountETH, uint liquidity);
+    function removeLiquidity(
+        address tokenA,
+        address tokenB,
+        uint liquidity,
+        uint amountAMin,
+        uint amountBMin,
+        address to,
+        uint deadline
+    ) external returns (uint amountA, uint amountB);
+    function removeLiquidityETH(
+        address token,
+        uint liquidity,
+        uint amountTokenMin,
+        uint amountETHMin,
+        address to,
+        uint deadline
+    ) external returns (uint amountToken, uint amountETH);
+    function removeLiquidityWithPermit(
+        address tokenA,
+        address tokenB,
+        uint liquidity,
+        uint amountAMin,
+        uint amountBMin,
+        address to,
+        uint deadline,
+        bool approveMax, uint8 v, bytes32 r, bytes32 s
+    ) external returns (uint amountA, uint amountB);
+    function removeLiquidityETHWithPermit(
+        address token,
+        uint liquidity,
+        uint amountTokenMin,
+        uint amountETHMin,
+        address to,
+        uint deadline,
+        bool approveMax, uint8 v, bytes32 r, bytes32 s
+    ) external returns (uint amountToken, uint amountETH);
+    function swapExactTokensForTokens(
+        uint amountIn,
+        uint amountOutMin,
+        address[] calldata path,
+        address to,
+        uint deadline
+    ) external returns (uint[] memory amounts);
+    function swapTokensForExactTokens(
+        uint amountOut,
+        uint amountInMax,
+        address[] calldata path,
+        address to,
+        uint deadline
+    ) external returns (uint[] memory amounts);
+    function swapExactETHForTokens(uint amountOutMin, address[] calldata path, address to, uint deadline)
+        external
+        payable
+        returns (uint[] memory amounts);
+    function swapTokensForExactETH(uint amountOut, uint amountInMax, address[] calldata path, address to, uint deadline)
+        external
+        returns (uint[] memory amounts);
+    function swapExactTokensForETH(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline)
+        external
+        returns (uint[] memory amounts);
+    function swapETHForExactTokens(uint amountOut, address[] calldata path, address to, uint deadline)
+        external
+        payable
+        returns (uint[] memory amounts);
+
+    function quote(uint amountA, uint reserveA, uint reserveB) external pure returns (uint amountB);
+    function getAmountOut(uint amountIn, uint reserveIn, uint reserveOut) external pure returns (uint amountOut);
+    function getAmountIn(uint amountOut, uint reserveIn, uint reserveOut) external pure returns (uint amountIn);
+    function getAmountsOut(uint amountIn, address[] calldata path) external view returns (uint[] memory amounts);
+    function getAmountsIn(uint amountOut, address[] calldata path) external view returns (uint[] memory amounts);
+}
+
+// pragma solidity >=0.6.2;
+
+interface IUniswapV2Router02 is IUniswapV2Router01 {
+    function removeLiquidityETHSupportingFeeOnTransferTokens(
+        address token,
+        uint liquidity,
+        uint amountTokenMin,
+        uint amountETHMin,
+        address to,
+        uint deadline
+    ) external returns (uint amountETH);
+    function removeLiquidityETHWithPermitSupportingFeeOnTransferTokens(
+        address token,
+        uint liquidity,
+        uint amountTokenMin,
+        uint amountETHMin,
+        address to,
+        uint deadline,
+        bool approveMax, uint8 v, bytes32 r, bytes32 s
+    ) external returns (uint amountETH);
+
+    function swapExactTokensForTokensSupportingFeeOnTransferTokens(
+        uint amountIn,
+        uint amountOutMin,
+        address[] calldata path,
+        address to,
+        uint deadline
+    ) external;
+    function swapExactETHForTokensSupportingFeeOnTransferTokens(
+        uint amountOutMin,
+        address[] calldata path,
+        address to,
+        uint deadline
+    ) external payable;
+    function swapExactTokensForETHSupportingFeeOnTransferTokens(
+        uint amountIn,
+        uint amountOutMin,
+        address[] calldata path,
+        address to,
+        uint deadline
+    ) external;
+}
+
+
 contract DangerMoon is Context, IERC20, Ownable, VRFConsumerBase {
-    // using SafeMath for uint256; // SafeMath inherited from VRFConsumerBase
+    // i really wanted to rename this DangerMath but its inherited from VRFConsumerBase :(
+    // using SafeMath for uint256;
     using Address for address;
 
     mapping (address => uint256) private _balances;
-    address[] private _allLottoAddresses;
+    mapping (address => uint256) private _numberOfReflectionEntries;
+    address[] private _allReflectionAddresses;
 
     mapping (address => mapping (address => uint256)) private _allowances;
     mapping (address => bool) private _isExcludedFromFee;
-    mapping (address => bool) private _isExcluded;
-    address[] private _excluded;
 
     uint256 public _maxTxAmount = 5000000 * 10**6 * 10**9;
-    uint256 public _minimumPurchaseNecessary = 10 ** 8; // TODO setter?
+    uint256 public _minimumTokensForReflection = 10 ** 8;
     uint256 private _tokenTotal = 1000000000 * 10**6 * 10**9;
-    uint256 private numTokensSellToAddToLiquidity = 5**5 * 10**15;
+    uint256 private numTokensSellToAddToLiquidity = 5**5 * 10**6 * 10**9;
 
     string private _name = "DangerMoon";
     string private _symbol = "DANGERMOON";
     uint8 private _decimals = 9;
 
     uint256 private _randNonce = 0;
-    uint256 private _lifetimeJackpots = 0;
-    uint256 private _currentJackpot = 0;
-    uint256 private _lottoFee = 5;
+    uint256 private _totalReflected = 0;
+    uint256 private _currentReflection = 0;
+    uint256 private _reflectionFee = 5;
     uint256 private _liquidityFee = 5;
 
-    IUniswapV2Router02 public immutable uniswapV2Router;
-    address public immutable uniswapV2Pair;
+    // Added a setter for these, so we can move liquidity when something on bsc supports uniswap v3
+    IUniswapV2Router02 public uniswapV2Router;
+    address public uniswapV2Pair;
 
-    bool inPayout;
+    bool _inDistribution;
     bool inSwapAndLiquify;
     bool public swapAndLiquifyEnabled = true;
 
     bytes32 internal keyHash;
     uint256 internal linkFee;
 
-    event RequestedLotteryWinner();
-    event LotteryWinner(uint256 time, address winner, uint256 jackpot);
-    event CurrentJackpot(uint256 time, uint256 _currentJackpot);
-    event JoinedTheLotto(uint256 time, address winner);
+    event RequestedRandomness();
+    event ReflectionRecipient(address recipient, uint256 currentReflection);
+    event CurrentReflection(uint256 currentReflection);
+    event AddedReflectionEntry(address recipient);
     event MinTokensBeforeSwapUpdated(uint256 minTokensBeforeSwap);
     event SwapAndLiquifyEnabledUpdated(bool enabled);
     event SwapAndLiquify(uint256 tokensSwapped, uint256 ethReceived, uint256 tokensIntoLiqudity);
@@ -389,7 +619,7 @@ contract DangerMoon is Context, IERC20, Ownable, VRFConsumerBase {
       bytes32 _keyHash
     ) VRFConsumerBase(_vrfCoordinator, _linkToken) public {
         keyHash = _keyHash;
-        linkFee = 0.1 * 10 ** 18;
+        linkFee = 0.2 * 10 ** 18;
 
         _balances[_msgSender()] = _tokenTotal;
 
@@ -424,31 +654,34 @@ contract DangerMoon is Context, IERC20, Ownable, VRFConsumerBase {
         return _tokenTotal;
     }
 
-    function numTicketsHeld() public view returns (uint256) {
-        return _allLottoAddresses.length;
+    function totalReflectionEntries() public view returns (uint256) {
+        return _allReflectionAddresses.length;
     }
 
-    function lifetimeJackpots() public view returns (uint256) {
-        return _lifetimeJackpots;
+    function totalReflected() public view returns (uint256) {
+        return _totalReflected;
     }
 
-    function currentJackpot() public view returns (uint256) {
-        return _currentJackpot;
+    function currentReflection() public view returns (uint256) {
+        return _currentReflection;
+    }
+
+    function numberOfReflectionEntries(address account) public view returns (uint256) {
+        return _numberOfReflectionEntries[account];
     }
 
     function balanceOf(address account) public view override returns (uint256) {
         return _balances[account];
     }
 
-    function balanceOfLink(address account) public view returns (uint256) {
-        return LINK.balanceOf(account);
+    function linkBalance() public view returns (uint256) {
+        return LINK.balanceOf(address(this));
     }
 
     function transfer(address recipient, uint256 amount) public override returns (bool) {
         _transfer(_msgSender(), recipient, amount);
         return true;
     }
-
 
     function allowance(address owner, address spender) public view override returns (uint256) {
         return _allowances[owner][spender];
@@ -475,36 +708,6 @@ contract DangerMoon is Context, IERC20, Ownable, VRFConsumerBase {
         return true;
     }
 
-    function isExcludedFromReward(address account) public view returns (bool) {
-        return _isExcluded[account];
-    }
-
-    // TODO who calls this? what is this for?
-    // function deliver(uint256 tAmount) public {
-    //    address sender = _msgSender();
-    //    require(!_isExcluded[sender], "Excluded addresses cannot call this function");
-    //    _lifetimeJackpots = _lifetimeJackpots.add(tAmount);
-    // }
-
-    function excludeFromReward(address account) public onlyOwner() {
-        require(!_isExcluded[account], "Account is already excluded");
-        _isExcluded[account] = true;
-        _excluded.push(account);
-    }
-
-    function includeInReward(address account) external onlyOwner() {
-        require(_isExcluded[account], "Account is already excluded");
-        for (uint256 i = 0; i < _excluded.length; i++) {
-            if (_excluded[i] == account) {
-                _excluded[i] = _excluded[_excluded.length - 1];
-                _balances[account] = 0;
-                _isExcluded[account] = false;
-                _excluded.pop();
-                break;
-            }
-        }
-    }
-
     function excludeFromFee(address account) public onlyOwner {
         _isExcludedFromFee[account] = true;
     }
@@ -513,14 +716,30 @@ contract DangerMoon is Context, IERC20, Ownable, VRFConsumerBase {
         _isExcludedFromFee[account] = false;
     }
 
-    // NOTE why would we ever change these?
-    // function setLottoFeePercent(uint256 lottoFee) external onlyOwner() {
-        // _lottoFee = lottoFee;
-    // }
-    //
-    // function seliquidityFeePercent(uint256 liquidityFee) external onlyOwner() {
-        // _liquidityFee = liquidityFee;
-    // }
+    // Setter in case we move liquidity to a new router (hopefully uniswap v3 on bsc soon)
+    function setUniswapPair(address _uniswapV2RouterAddress) external onlyOwner() {
+        IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(_uniswapV2RouterAddress);
+        // Create a uniswap pair for this new token
+        uniswapV2Pair = IUniswapV2Factory(_uniswapV2Router.factory())
+            .createPair(address(this), _uniswapV2Router.WETH());
+
+        uniswapV2Router = _uniswapV2Router;
+    }
+
+    // Setter in case the community wants us to crank the reflection up to 11
+    function setReflectionFeePercent(uint256 reflectionFee) external onlyOwner() {
+        _reflectionFee = reflectionFee;
+    }
+
+    // Setter in case the token moons and entries in reflection system become prohibitively expensive
+    function setMinimumTokensForReflection(uint256 _minTokensForReflection) external onlyOwner() {
+        _minimumTokensForReflection = _minTokensForReflection;
+    }
+
+    // Setter in case liquidity starts to dry up, or sucks up too much dangermoon
+    function setLiquidityFeePercent(uint256 liquidityFee) external onlyOwner() {
+        _liquidityFee = liquidityFee;
+    }
 
     function setMaxTxPercent(uint256 maxTxPercent) external onlyOwner() {
         _maxTxAmount = _tokenTotal.mul(maxTxPercent).div(10**2);
@@ -535,26 +754,14 @@ contract DangerMoon is Context, IERC20, Ownable, VRFConsumerBase {
     receive() external payable {}
 
     function _getFees(uint256 amount) private view returns (uint256, uint256, uint256) {
-        uint256 lottoFee = amount.mul(_lottoFee).div(10**2);
+        uint256 reflectionFee = amount.mul(_reflectionFee).div(10**2);
         uint256 liquidityFee = amount.mul(_liquidityFee).div(10**2);
-        uint256 amountMinusFees = amount.sub(lottoFee).sub(liquidityFee);
-        return (amountMinusFees, lottoFee, liquidityFee);
+        uint256 amountMinusFees = amount.sub(reflectionFee).sub(liquidityFee);
+        return (amountMinusFees, reflectionFee, liquidityFee);
     }
 
-    // Nothing calls this
-    // function _getCurrentSupply() private view returns(uint256) {
-        // uint256 tokenSupply = _tokenTotal;
-        // for (uint256 i = 0; i < _excluded.length; i++) {
-            // if (_balances[_excluded[i]] > tSupply) return (_tokenTotal);
-            // tokenSupply = tokenSupply.sub(_balances[_excluded[i]]);
-        // }
-        // console.log("_getCurrentSupply::tSupply", tokenSupply);
-        // return tSupply;
-    // }
-
     function _takeLiquidity(uint256 liquidityFee) private {
-        if(_isExcluded[address(this)])
-            _balances[address(this)] = _balances[address(this)].add(liquidityFee);
+        _balances[address(this)] = _balances[address(this)].add(liquidityFee);
     }
 
     function isExcludedFromFee(address account) public view returns(bool) {
@@ -593,11 +800,11 @@ contract DangerMoon is Context, IERC20, Ownable, VRFConsumerBase {
             swapAndLiquifyEnabled
         ) {
             contractTokenBalance = numTokensSellToAddToLiquidity;
-            //add liquidity
+            // add liquidity
             swapAndLiquify(contractTokenBalance);
         }
 
-        // transfer amount... taking fees & paying jackpots as needed
+        // transfer amount... taking fees & distributing currentReflection as needed
         _tokenTransfer(from, to, amount);
     }
 
@@ -657,73 +864,85 @@ contract DangerMoon is Context, IERC20, Ownable, VRFConsumerBase {
         );
     }
 
-    // Payout to random winner from chainlink response
-    function fulfillRandomness(bytes32 /*requestId*/, uint256 randomness) internal override {
-        uint256 numAddresses = _allLottoAddresses.length;
-        uint256 winnerIndex = randomness.mod(numAddresses);
-        address lotteryWinner = _allLottoAddresses[winnerIndex];
-        _balances[lotteryWinner] = _balances[lotteryWinner].add(_currentJackpot);
-        _lifetimeJackpots = _lifetimeJackpots.add(_currentJackpot);
-        emit LotteryWinner(now, lotteryWinner, _currentJackpot);
-        _currentJackpot = 0;
-        inPayout = false;
+    // Distribute random reflection from chainlink VRF response
+    function fulfillRandomness(bytes32 requestId, uint256 randomness) internal override {
+        bytes32 requestId2 = requestId;
+        uint256 numAddresses = _allReflectionAddresses.length;
+        uint256 randomIndex = randomness.mod(numAddresses);
+        address randomRecipient = _allReflectionAddresses[randomIndex];
+        _balances[randomRecipient] = _balances[randomRecipient].add(_currentReflection);
+        _totalReflected = _totalReflected.add(_currentReflection);
+        emit ReflectionRecipient(randomRecipient, _currentReflection);
+        _currentReflection = 0;
+        _inDistribution = false;
     }
 
-    // Requests random winner from chainlink whenever contract can afford it
-    function _maybePayoutJackpot() private returns (bytes32 requestId) {
-
-        // console.log("Addresses:");
-        // for (uint256 i = 0; i < _allLottoAddresses.length; i++) {
-            // console.log(_allLottoAddresses[i]);
-        // }
-
-        console.log("Link Balance: ");
-        console.log(LINK.balanceOf(address(this)));
-        console.log(address(this).balance);
-
-
-        // only initiate random payout if we:
-        // - aren't already paying out
+    // Requests random number from chainlink whenever contract can afford it
+    function _maybeDistributeCurrentReflection() private returns (bytes32 requestId) {
+        // only initiate random distribution if we:
+        // - aren't already in a distribution
         // - have enough LINK in the contract
-        if (!inPayout && LINK.balanceOf(address(this)) >= linkFee) {
-            console.log("Requesting payout");
-            inPayout = true;
+        if (!_inDistribution && LINK.balanceOf(address(this)) >= linkFee) {
+            _inDistribution = true;
             _randNonce.add(1);
-            uint256 randomSeed = uint(keccak256(abi.encodePacked(now, msg.sender, _randNonce)));
-            requestRandomness(keyHash, linkFee, randomSeed);
-            emit RequestedLotteryWinner();
+            /**
+              NOTE 3rd arg isn't actually used inside chainlink
+              (according to their solutions engineer)
+              so we just pass in some psuedoRandom value here
+            */
+            uint256 psuedoRandomSeed = uint(keccak256(abi.encodePacked(now, msg.sender, _randNonce)));
+            requestRandomness(keyHash, linkFee, psuedoRandomSeed);
+            emit RequestedRandomness();
         }
     }
 
-    function _accrueLotteryFees(uint256 lottoFee) private {
-        _currentJackpot = _currentJackpot.add(lottoFee);
-        emit CurrentJackpot(now, _currentJackpot);
+    function _accrueReflectionFees(uint256 reflectionFee) private {
+        _currentReflection = _currentReflection.add(reflectionFee);
+        emit CurrentReflection(_currentReflection);
     }
 
-    // this method is responsible for taking all fees & paying lotto winners, both as needed
+    // this method is responsible for taking all fees & distributing reflections, both as needed
     function _tokenTransfer(address from, address to, uint256 amount) private {
 
         // Always debit the full amount from sender's account
         _balances[from] = _balances[from].sub(amount);
 
-        // TODO test this thoroughly
         if(_isExcludedFromFee[from] || _isExcludedFromFee[to]) {
             // no fee for excluded accounts
             _balances[to] = _balances[to].add(amount);
             emit Transfer(from, to, amount);
         } else {
-            (uint256 amountMinusFees, uint256 lottoFee, uint256 liquidityFee) = _getFees(amount);
-            // Enter recipient into lotto if their purchase meets requirements
-            if (amount >= _minimumPurchaseNecessary) {
-                _allLottoAddresses.push(to);
-                emit JoinedTheLotto(now, to);
+            (uint256 amountMinusFees, uint256 reflectionFee, uint256 liquidityFee) = _getFees(amount);
+            /**
+              Enter recipient into reflection system if needed
+              never add uniswapV2Pair to reflection system
+            */
+            if (amount >= _minimumTokensForReflection && to != uniswapV2Pair) {
+                _allReflectionAddresses.push(to);
+                _numberOfReflectionEntries[to] = _numberOfReflectionEntries[to].add(1);
+                emit AddedReflectionEntry(to);
             }
             _takeLiquidity(liquidityFee);
-            _accrueLotteryFees(lottoFee);
-            _maybePayoutJackpot();
+            _accrueReflectionFees(reflectionFee);
+            _maybeDistributeCurrentReflection();
             _balances[to] = _balances[to].add(amountMinusFees);
             emit Transfer(from, to, amountMinusFees);
         }
     }
 
+}
+
+
+contract MockDangerMoon is DangerMoon {
+
+    constructor(
+      address _uniswapV2RouterAddress,
+      address _vrfCoordinator,
+      address _linkToken,
+      bytes32 _keyHash
+    ) DangerMoon(_uniswapV2RouterAddress, _vrfCoordinator, _linkToken, _keyHash) public { }
+
+    function _fulfillRandomness(bytes32 requestId, uint256 randomness) public {
+        fulfillRandomness(requestId, randomness);
+    }
 }
