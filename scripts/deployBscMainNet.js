@@ -26,12 +26,12 @@ async function main() {
 
   console.log("DangerMoon deployed to bsc mainnet:", dangermoon.address);
 
-  halfTotalTokenSupply = (await dangermoon.totalSupply()).div(2).toString();
-  // await safemoon.approve(UNISWAP_ROUTER, halfTotalTokenSupply);
-
-  const DEAD = '0x000000000000000000000000000000000000dEaD';
-  await dangermoon.transfer(DEAD, halfTotalTokenSupply);
-  console.log("half total token supply burnt");
+  // halfTotalTokenSupply = (await dangermoon.totalSupply()).div(2).toString();
+  // // await safemoon.approve(UNISWAP_ROUTER, halfTotalTokenSupply);
+  //
+  // const DEAD = '0x000000000000000000000000000000000000dEaD';
+  // await dangermoon.transfer(DEAD, halfTotalTokenSupply);
+  // console.log("half total token supply burnt");
 
 }
 
