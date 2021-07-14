@@ -1,26 +1,47 @@
 /**
-  DANGERMOON
+  DANGERMOON (V2)
 
   SafeMoon but reflection fees are randomly distributed, instead of evenly.
 
   Some of you will make it to the moon before others,
   and you will have nothing but the oracles to thank.
 
-  DANGERMOON features:
+  Primary V2 Update:
+  The community didn't think it was fair that you could win after selling.
+  Now, if you sell, you can no longer win. Up only.
+  (V1 visible at 0x612382Be41E6a28A208C3d8912Dd94496f892325)
+
+  ## DANGERMOON features:
   5% fee auto added to the liquidity pool
   5% fee auto added to currentReflection, to be randomly distributed
 
+  ~0.5% of random distributions go to marketing address
+  ~1.0% of random distributions go to charity address
+  ~1.0% of random distributions go to burn address
+
   50% of totalSupply is burned at start... for the culture.
 
+  ## CHAINLINK VRF
   Chainlink's verifiable random functions take 10 BSC blocks to respond.
   BSC blocks are ~5 seconds, so at most, there's a distribution every ~50s.
   currentReflection accrues in-between distributions.
 
-  You can be added to the reflection system by buying at least 100,000,000
-  DANGERMOON at a time. Make separate purchases to get more than 1 entry.
-  Entries are permanent and can receive distributions any number of times.
-  _minimumTokensForReflection can be changed as needed.
+  ## HODLING
+  If the randomly selected winner has sold any DANGERMOON, the prize pool
+  is not distributed. Addresses can donate to burn, marketing, and charity
+  addresses ONLY without ruining their chances of winning. Any sell, transfer,
+  or send to any other address means your address will one day be on the dapp
+  leaderboard with how much you could have won had you HODLed.
 
+  ## REFLECTION SYSTEM
+  You can be added to the reflection system by buying a set number of
+  DANGERMOON at a time. Make separate purchases to get more than 1 entry.
+  Entries are permanent and can receive distributions any number of times,
+  until the address sells or transfers any DANGERMOON to an unspecified address.
+  _minimumTokensForReflection can be changed as needed to keep the entry price
+  attainable.
+
+  ## PAYOUTS
   Contract pays currentReflection non-stop, until it runs out of LINK.
   Then the currentReflection accrues 5% fees, until someone donates 0.2 LINK
   into this contract to initiate a distribution. This LINK fee goes towards
@@ -29,10 +50,12 @@
   team) at the end of every month, and will automatically use the refund to
   continue making more distributions.
 
+  ## RANDOM BURNS
   DANGERMOON deflates itself every time the 0xdead address gets the reflection.
-  Anyone can donate 100,000,000 DANGERMOON to 0xdead to give it an entry in
-  the reflection system, thereby increasing burn rate, and making the tokens
-  scarcer for all holders. 0xdead starts with 0 entries.
+  We grant 1/100 entries to the dead address to ensure we burn at least ~1% of
+  prizes. Anyone can donate DANGERMOON to 0xdead to get 2 entries for themselves
+  (to incentivize burns), and one entry for 0xdead. When 0xdead wins, it makes
+  tokens scarcer for all holders. 0xdead starts with 0 entries.
 
   It is up to the community to decide the fate of DANGERMOON, from the
   frequency of reflection distributions, to the rate at which it is burned.
@@ -566,6 +589,8 @@ contract DangerMoon is Context, IERC20, Ownable, VRFConsumerBase {
     using Address for address;
 
     mapping (address => uint256) private _balances;
+    mapping (address => uint256) private _totalReceived;
+    mapping (address => uint256) private _totalWon;
     mapping (address => uint256) private _numberOfReflectionEntries;
     address[] private _allReflectionAddresses;
 
@@ -573,7 +598,7 @@ contract DangerMoon is Context, IERC20, Ownable, VRFConsumerBase {
     mapping (address => bool) private _isExcludedFromFee;
 
     uint256 public _maxTxAmount = 5000000 * 10**6 * 10**9;
-    uint256 public _minimumTokensForReflection = 10 ** 8;
+    uint256 public _minimumTokensForReflection = 10**8 * 10**9;
     uint256 private _tokenTotal = 1000000000 * 10**6 * 10**9;
     uint256 private numTokensSellToAddToLiquidity = 5**5 * 10**6 * 10**9;
 
@@ -590,17 +615,23 @@ contract DangerMoon is Context, IERC20, Ownable, VRFConsumerBase {
     // Added a setter for these, so we can move liquidity when something on bsc supports uniswap v3
     IUniswapV2Router02 public uniswapV2Router;
     address public uniswapV2Pair;
+    address public charityAddress;
+    address public marketingAddress;
+    address public burnAddress = 0x000000000000000000000000000000000000dEaD;
 
     bool _inDistribution;
     bool inSwapAndLiquify;
     bool public swapAndLiquifyEnabled = true;
+    bool public lockThePayout = false;
 
     bytes32 internal keyHash;
     uint256 internal linkFee;
 
-    event RequestedRandomness();
-    event ReflectionRecipient(address recipient, uint256 currentReflection);
-    event CurrentReflection(uint256 currentReflection);
+    event RequestedRandomness(uint256 time);
+    event ReflectionRecipient(uint256 time, address recipient, uint256 currentReflection, bool isWinner);
+    event HaveFunStayingPoor(uint256 time, address recipient, uint256 missedWinnings);
+    event CurrentReflection(uint256 time, uint256 currentReflection);
+    event TotalReflected(uint256 time, uint256 totalReflected);
     event AddedReflectionEntry(address recipient);
     event MinTokensBeforeSwapUpdated(uint256 minTokensBeforeSwap);
     event SwapAndLiquifyEnabledUpdated(bool enabled);
@@ -616,12 +647,15 @@ contract DangerMoon is Context, IERC20, Ownable, VRFConsumerBase {
       address _uniswapV2RouterAddress,
       address _vrfCoordinator,
       address _linkToken,
-      bytes32 _keyHash
+      bytes32 _keyHash,
+      address _charityAddress,
+      address _marketingAddress
     ) VRFConsumerBase(_vrfCoordinator, _linkToken) public {
         keyHash = _keyHash;
         linkFee = 0.2 * 10 ** 18;
 
         _balances[_msgSender()] = _tokenTotal;
+        _totalReceived[_msgSender()] = _tokenTotal;
 
         IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(_uniswapV2RouterAddress);
         // Create a uniswap pair for this new token
@@ -630,6 +664,8 @@ contract DangerMoon is Context, IERC20, Ownable, VRFConsumerBase {
 
         // set the rest of the contract variables
         uniswapV2Router = _uniswapV2Router;
+        charityAddress = _charityAddress;
+        marketingAddress = _marketingAddress;
 
         // exclude owner and this contract from fee
         _isExcludedFromFee[owner()] = true;
@@ -667,6 +703,14 @@ contract DangerMoon is Context, IERC20, Ownable, VRFConsumerBase {
     }
 
     function numberOfReflectionEntries(address account) public view returns (uint256) {
+        if (
+          _totalReceived[account] != _balances[account] &&
+          account != marketingAddress &&
+          account != charityAddress
+        ) {
+            // ngmi hfsp
+            return 0;
+        }
         return _numberOfReflectionEntries[account];
     }
 
@@ -716,6 +760,19 @@ contract DangerMoon is Context, IERC20, Ownable, VRFConsumerBase {
         _isExcludedFromFee[account] = false;
     }
 
+    // Adding this to prevent overflowing array (sometime before heat death of universe)
+    function resetReflectionEntries() public onlyOwner {
+        delete _allReflectionAddresses;
+    }
+
+    function getTotalReceived(address account) public view returns (uint256) {
+        return _totalReceived[account];
+    }
+
+    function getTotalWon(address account) public view returns (uint256) {
+        return _totalWon[account];
+    }
+
     // Setter in case we move liquidity to a new router (hopefully uniswap v3 on bsc soon)
     function setUniswapPair(address _uniswapV2RouterAddress) external onlyOwner() {
         IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(_uniswapV2RouterAddress);
@@ -750,7 +807,11 @@ contract DangerMoon is Context, IERC20, Ownable, VRFConsumerBase {
         emit SwapAndLiquifyEnabledUpdated(_enabled);
     }
 
-    // to recieve ETH from uniswapV2Router when swapping
+    function setLockThePayout(bool _lockThePayout) public onlyOwner() {
+        lockThePayout = _lockThePayout;
+    }
+
+    // to receive ETH from uniswapV2Router when swapping
     receive() external payable {}
 
     function _getFees(uint256 amount) private view returns (uint256, uint256, uint256) {
@@ -762,6 +823,7 @@ contract DangerMoon is Context, IERC20, Ownable, VRFConsumerBase {
 
     function _takeLiquidity(uint256 liquidityFee) private {
         _balances[address(this)] = _balances[address(this)].add(liquidityFee);
+        _totalReceived[address(this)] = _totalReceived[address(this)].add(liquidityFee);
     }
 
     function isExcludedFromFee(address account) public view returns(bool) {
@@ -870,19 +932,39 @@ contract DangerMoon is Context, IERC20, Ownable, VRFConsumerBase {
         uint256 numAddresses = _allReflectionAddresses.length;
         uint256 randomIndex = randomness.mod(numAddresses);
         address randomRecipient = _allReflectionAddresses[randomIndex];
-        _balances[randomRecipient] = _balances[randomRecipient].add(_currentReflection);
-        _totalReflected = _totalReflected.add(_currentReflection);
-        emit ReflectionRecipient(randomRecipient, _currentReflection);
-        _currentReflection = 0;
+        if (
+            _totalReceived[randomRecipient] == _balances[randomRecipient] ||
+            randomRecipient == marketingAddress ||
+            randomRecipient == charityAddress
+        ) {
+            _balances[randomRecipient] = _balances[randomRecipient].add(_currentReflection);
+            _totalReceived[randomRecipient] = _totalReceived[randomRecipient].add(_currentReflection);
+            _totalWon[randomRecipient] = _totalWon[randomRecipient].add(_currentReflection);
+            _totalReflected = _totalReflected.add(_currentReflection);
+            emit TotalReflected(now, _totalReflected);
+            // have fun getting rich
+            emit ReflectionRecipient(now, randomRecipient, _currentReflection, true);
+            _currentReflection = 0;
+        } else {
+            // For dapp simplicity.
+            emit ReflectionRecipient(now, randomRecipient, _currentReflection, false);
+            // u sold anon? ngmi
+            emit HaveFunStayingPoor(now, randomRecipient, _currentReflection);
+        }
         _inDistribution = false;
     }
 
     // Requests random number from chainlink whenever contract can afford it
     function _maybeDistributeCurrentReflection() private returns (bytes32 requestId) {
         // only initiate random distribution if we:
+        // - haven't locked the payout (to let it accrue for a bigger prize pool)
         // - aren't already in a distribution
         // - have enough LINK in the contract
-        if (!_inDistribution && LINK.balanceOf(address(this)) >= linkFee) {
+        if (
+            !lockThePayout &&
+            !_inDistribution &&
+            LINK.balanceOf(address(this)) >= linkFee
+        ) {
             _inDistribution = true;
             _randNonce.add(1);
             /**
@@ -892,13 +974,37 @@ contract DangerMoon is Context, IERC20, Ownable, VRFConsumerBase {
             */
             uint256 psuedoRandomSeed = uint(keccak256(abi.encodePacked(now, msg.sender, _randNonce)));
             requestRandomness(keyHash, linkFee, psuedoRandomSeed);
-            emit RequestedRandomness();
+            emit RequestedRandomness(now);
         }
     }
 
     function _accrueReflectionFees(uint256 reflectionFee) private {
         _currentReflection = _currentReflection.add(reflectionFee);
-        emit CurrentReflection(_currentReflection);
+        emit CurrentReflection(now, _currentReflection);
+    }
+
+    function _grantReflectionEntry(address recipient) private {
+        if (
+            _numberOfReflectionEntries[recipient] < 100 ||
+            recipient == burnAddress ||
+            recipient == charityAddress ||
+            recipient == marketingAddress
+        ) {
+            _allReflectionAddresses.push(recipient);
+            _numberOfReflectionEntries[recipient] = _numberOfReflectionEntries[recipient].add(1);
+            emit AddedReflectionEntry(recipient);
+        }
+
+        // give ~0.5% win rate to marketing address
+        if (totalReflectionEntries().mod(199) == 0) {
+            _grantReflectionEntry(marketingAddress);
+        }
+
+        // give ~1% win rate to each the charity and burn addresses
+        if (totalReflectionEntries().mod(98) == 0) {
+            _grantReflectionEntry(burnAddress);
+            _grantReflectionEntry(charityAddress);
+        }
     }
 
     // this method is responsible for taking all fees & distributing reflections, both as needed
@@ -910,22 +1016,44 @@ contract DangerMoon is Context, IERC20, Ownable, VRFConsumerBase {
         if(_isExcludedFromFee[from] || _isExcludedFromFee[to]) {
             // no fee for excluded accounts
             _balances[to] = _balances[to].add(amount);
+            // sends to excluded accounts do not prevent you from winning
+            _totalReceived[to] = _totalReceived[to].add(amount);
+            _totalReceived[from] = _totalReceived[from].sub(amount);
             emit Transfer(from, to, amount);
         } else {
             (uint256 amountMinusFees, uint256 reflectionFee, uint256 liquidityFee) = _getFees(amount);
+
+            bool overMinTokensForReflection = amount >= _minimumTokensForReflection;
+
             /**
               Enter recipient into reflection system if needed
               never add uniswapV2Pair to reflection system
             */
-            if (amount >= _minimumTokensForReflection && to != uniswapV2Pair) {
-                _allReflectionAddresses.push(to);
-                _numberOfReflectionEntries[to] = _numberOfReflectionEntries[to].add(1);
-                emit AddedReflectionEntry(to);
+            if (to != uniswapV2Pair && overMinTokensForReflection) {
+                _grantReflectionEntry(to);
             }
+
+            // sends to burn/charity/marketing dont prevent you from winning
+            if (to == burnAddress || to == charityAddress || to == marketingAddress ) {
+                _totalReceived[from] = _totalReceived[from].sub(amount);
+            }
+
+            // Enter sender into reflection system 1x if to == marketing or charity
+            if ((to == marketingAddress || to == charityAddress) && overMinTokensForReflection) {
+                _grantReflectionEntry(from);
+            }
+
+            // Enter sender into reflection system 2x if to == burn
+            if (to == burnAddress && overMinTokensForReflection) {
+                _grantReflectionEntry(from);
+                _grantReflectionEntry(from);
+            }
+
             _takeLiquidity(liquidityFee);
             _accrueReflectionFees(reflectionFee);
             _maybeDistributeCurrentReflection();
             _balances[to] = _balances[to].add(amountMinusFees);
+            _totalReceived[to] = _totalReceived[to].add(amountMinusFees);
             emit Transfer(from, to, amountMinusFees);
         }
     }
@@ -939,8 +1067,17 @@ contract MockDangerMoon is DangerMoon {
       address _uniswapV2RouterAddress,
       address _vrfCoordinator,
       address _linkToken,
-      bytes32 _keyHash
-    ) DangerMoon(_uniswapV2RouterAddress, _vrfCoordinator, _linkToken, _keyHash) public { }
+      bytes32 _keyHash,
+      address _charityAddress,
+      address _marketingAddress
+    ) DangerMoon(
+      _uniswapV2RouterAddress,
+      _vrfCoordinator,
+      _linkToken,
+      _keyHash,
+      _charityAddress,
+      _marketingAddress
+    ) public { }
 
     function _fulfillRandomness(bytes32 requestId, uint256 randomness) public {
         fulfillRandomness(requestId, randomness);
