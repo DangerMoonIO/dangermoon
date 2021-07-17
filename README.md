@@ -11,7 +11,7 @@ Dangermoon contract: https://bscscan.com/token/0x90c7e271F8307E64d9A1bd86eF30961
 
 Chart: https://charts.bogged.finance/?token=0x90c7e271F8307E64d9A1bd86eF30961e5e1031e7
 
-Link to buy: https://exchange.pancakeswap.finance/#/swap?inputCurrency=0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c&outputCurrency=0x90c7e271F8307E64d9A1bd86eF30961e5e1031e7
+Link to buy: https://exchange.pancakeswap.finance/#/swap?outputCurrency=0x90c7e271F8307E64d9A1bd86eF30961e5e1031e7
 
 How to get oracle-supported chainlink on bsc to initiate distributions: https://pegswap.chain.link/ (read more in #payouts channel on discord)
 
