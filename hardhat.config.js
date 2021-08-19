@@ -1,6 +1,6 @@
 require("@nomiclabs/hardhat-waffle");
 
-const { ALCHEMY_API_KEY, PRIVATE_KEY, MNEMONIC } = require('./secrets.json');
+const { ALCHEMY_API_KEY, PRIVATE_KEY } = require('./secrets.json');
 
 // This is a sample Hardhat task. To learn how to create your own go to
 // https://hardhat.org/guides/create-task.html
@@ -36,13 +36,13 @@ module.exports = {
       url: "https://bsc-dataseed.binance.org/",
       chainId: 56,
       gasPrice: 20000000000,
-      accounts: {mnemonic: MNEMONIC}
+      accounts: [`0x${PRIVATE_KEY}`]
     },
     testnet: {
       url: "https://data-seed-prebsc-1-s1.binance.org:8545",
       chainId: 97,
       gasPrice: 20000000000,
-      accounts: {mnemonic: MNEMONIC}
+      accounts: [`0x${PRIVATE_KEY}`]
     }
   }
 };
