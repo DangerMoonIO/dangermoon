@@ -1,3 +1,4 @@
+const cron = require('node-cron');
 const hre = require("hardhat");
 const fetch = require("node-fetch");
 const { ethers } = require("hardhat");
@@ -11,6 +12,14 @@ function sleep (time) {
 
 async function main() {
 
+  console.log("Cron triggered", new Date());
+
+  const SECONDS_IN_DAY = 86400/1000;
+  const sleeptime = Math.floor(Math.random() * SECONDS_IN_DAY) + 1
+  console.log("Sleeping for... ", sleeptime);
+  await sleep(sleeptime);
+
+  console.log("Fetching updated price from PCS...");
   const pcsApiUrl = "https://api.pancakeswap.info/api/v2/tokens/0x90c7e271F8307E64d9A1bd86eF30961e5e1031e7";
   const pcsResponse = await fetch(pcsApiUrl);
   const pcsData = await pcsResponse.json();
@@ -22,19 +31,24 @@ async function main() {
   let dangermoon = await DangerMoon.attach(ADDRESS);
 
   console.log("Setting new minimum entry to ", minimumTokensForReflection);
-  console.log(await dangermoon.setMinimumTokensForReflection(minimumTokensForReflection));
+  const tx = await dangermoon.setMinimumTokensForReflection(minimumTokensForReflection);
+  const receipt = await tx.wait()
+  console.log(receipt);
 
-  // Wait for tx to be mined. TODO find a better way to do this.
-  await sleep(5000);
+  // await sleep(5000);
 
-  console.log("Updated to: ", (await dangermoon._minimumTokensForReflection()).toString());
+  // console.log(dangermoon);
+  // console.log("Updated to: ", (await dangermoon._minimumTokensForReflection()).toString());
 }
 
-// We recommend this pattern to be able to use async/await everywhere
-// and properly handle errors.
-main()
-  .then(() => process.exit(0))
-  .catch(error => {
-    console.error(error);
-    process.exit(1);
-  });
+console.log("Scheduling cronjob");
+cron.schedule('* * * * *', () => {
+  // We recommend this pattern to be able to use async/await everywhere
+  // and properly handle errors.
+  main()
+    // .then(() => process.exit(0))
+    .catch(error => {
+      console.error(error);
+      process.exit(1);
+    });
+});
