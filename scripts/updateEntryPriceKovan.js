@@ -35,9 +35,6 @@ async function main() {
   const receipt = await tx.wait()
   console.log(receipt);
 
-  // await sleep(5000);
-
-  // console.log(dangermoon);
   // console.log("Updated to: ", (await dangermoon._minimumTokensForReflection()).toString());
 }
 

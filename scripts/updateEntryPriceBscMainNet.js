@@ -14,7 +14,7 @@ async function main() {
 
   console.log("Cron triggered", new Date());
 
-  const MS_IN_DAY = 24*60*60*1000/2;
+  const MS_IN_DAY = 24*60*60*1000;
   const sleeptime = Math.floor(Math.random() * MS_IN_DAY) + 1
   console.log("Sleeping for... ", sleeptime);
   await sleep(sleeptime);
@@ -37,11 +37,6 @@ async function main() {
 
   // console.log("Updated to: ", (await dangermoon._minimumTokensForReflection()).toString());
 }
-
-// todo
-// pipe output to file
-// then try backgrounding process
-// then try closing laptop
 
 console.log("Scheduling cronjob");
 cron.schedule('0 0 * * *', () => {
