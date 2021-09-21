@@ -172,14 +172,7 @@ const DEAD = '0x000000000000000000000000000000000000dEaD';
 
 let dangermoon;
 const dangermoonDecimals = 9;
-let owner;
-let a;
-let b;
-let c;
-let d;
-let marketing;
-let charity;
-let testWallet;
+let owner, a, b, c, d, marketing, charity, testWallet;
 let halfTotalTokenSupply
 
 async function logAllBalances(header) {
