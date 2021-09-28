@@ -174,30 +174,30 @@ const DEAD = '0x000000000000000000000000000000000000dEaD';
 let dangermoon;
 let tictactoe;
 const dangermoonDecimals = 9;
-let owner, a, b, c, d, charity, marketing;
+// NOTE t1p1 = "team 1 player 1" etc
+let owner, t1p1, t1p2, t1p3, t2p1, charity, marketing;
 
 async function logAllBalances(header) {
   console.log(header);
-  console.log("totalReflected", (await dangermoon.totalReflected()).toString());
-  console.log("currentReflection", (await dangermoon.currentReflection()).toString());
-  console.log("0xdead", (await dangermoon.balanceOf(DEAD)).toString());
+  console.log("0xtictactoe", (await dangermoon.balanceOf(tictactoe.address)).toString());
   console.log("0xowner", (await dangermoon.balanceOf(owner.address)).toString());
-  console.log("0xa", (await dangermoon.balanceOf(a.address)).toString());
-  console.log("0xb", (await dangermoon.balanceOf(b.address)).toString());
-  console.log("0xc", (await dangermoon.balanceOf(c.address)).toString());
+  console.log("0xt1p1",  (await dangermoon.balanceOf(t1p1.address)).toString());
+  console.log("0xt1p2",  (await dangermoon.balanceOf(t1p2.address)).toString());
+  console.log("0xt1p3",  (await dangermoon.balanceOf(t1p3.address)).toString());
+  console.log("0xt2p1",  (await dangermoon.balanceOf(t2p1.address)).toString());
   console.log("\n");
 }
 
 async function expectAllBalances(expectations) {
-  const { _totalReflected, _currentReflection, _dead, _owner, _a, _b, _c } = expectations;
-  expect( (await dangermoon.totalReflected()).toString(),       "totalReflected").to.equal(_totalReflected);
-  expect( (await dangermoon.currentReflection()).toString(), "currentReflection").to.equal(_currentReflection);
-  expect( (await dangermoon.balanceOf(DEAD)).toString(),                "0xdead").to.equal(_dead);
-  expect( (await dangermoon.balanceOf(owner.address)).toString(),        "owner").to.equal(_owner);
-  expect( (await dangermoon.balanceOf(a.address)).toString(),                "a").to.equal(_a);
-  expect( (await dangermoon.balanceOf(b.address)).toString(),                "b").to.equal(_b);
-  expect( (await dangermoon.balanceOf(c.address)).toString(),                "c").to.equal(_c);
+  const { _tictactoe, _owner, _t1p1, _t1p2, _t1p3, _t2p1 } = expectations;
+  expect( (await dangermoon.balanceOf(tictactoe.address)).toString(), "tictactoe").to.equal(_tictactoe);
+  expect( (await dangermoon.balanceOf(owner.address)).toString(), "owner").to.equal(_owner);
+  expect( (await dangermoon.balanceOf(t1p1.address)).toString(), "t1p1").to.equal(_t1p1);
+  expect( (await dangermoon.balanceOf(t1p2.address)).toString(), "t1p2").to.equal(_t1p2);
+  expect( (await dangermoon.balanceOf(t1p3.address)).toString(), "t1p3").to.equal(_t1p3);
+  expect( (await dangermoon.balanceOf(t2p1.address)).toString(), "t2p1").to.equal(_t2p1);
 }
+
 
 async function buyFromUniswap(buyer, faucetEther, etherToSpend) {
   await testWallet.signTransaction({
@@ -205,7 +205,7 @@ async function buyFromUniswap(buyer, faucetEther, etherToSpend) {
     value: ethers.utils.parseEther(faucetEther)
   });
   await uniswapContract.swapETHForExactTokens(
-    "111111111111111111",
+    "50000000000000000000",
     [WETH_ADDRESS, dangermoon.address],
     buyer.address,
     Math.floor(Date.now() / 1000),
@@ -218,7 +218,8 @@ async function buyFromUniswap(buyer, faucetEther, etherToSpend) {
 
 describe('TicTacToe', function() {
     beforeEach(async () => {
-      [owner, a, b, c, d, charity, marketing] = await ethers.getSigners();
+      // NOTE t1p1 = "team 1 player 1" etc
+      [owner, t1p1, t1p2, t1p3, t2p1, charity, marketing] = await ethers.getSigners();
 
       // Get and deploy dangermoon
       const MockDangerMoon = await ethers.getContractFactory("MockDangerMoon");
@@ -266,10 +267,10 @@ describe('TicTacToe', function() {
       );
 
       // a b and c go buy from uniswap
-      await buyFromUniswap(a, "0.0000001", "0.00000001");
-      await buyFromUniswap(b, "0.0000001", "0.00000001");
-      await buyFromUniswap(c, "0.0000001", "0.00000001");
-      await buyFromUniswap(d, "0.0000001", "0.00000001");
+      await buyFromUniswap(t1p1, "0.000001", "0.0000001");
+      await buyFromUniswap(t1p2, "0.000001", "0.0000001");
+      await buyFromUniswap(t1p3, "0.000001", "0.0000001");
+      await buyFromUniswap(t2p1, "0.000001", "0.0000001");
 
       // Get and deploy tictactoe
       const DangerMoonTicTacToe = await ethers.getContractFactory("DangerMoonTicTacToe");
@@ -283,11 +284,8 @@ describe('TicTacToe', function() {
         // console.log(await dangermoon.balanceOf(tictactoe.address));
         // console.log(await dangermoon.connect(c).transfer(tictactoe.address, "100000000000000000"));
 
-        await dangermoon.connect(a).approve(tictactoe.address, "100000000000000000");
-        await expect(tictactoe.connect(a).newGame(100)).to.emit(tictactoe, "GameCreated");
-
-        await dangermoon.connect(d).approve(tictactoe.address, "100000000000000000");
-        await expect(tictactoe.connect(d).newGame(100)).to.emit(tictactoe, "GameCreated");
+        await expect(tictactoe.connect(t1p1).newGame(1200)).to.emit(tictactoe, "GameCreated");
+        await expect(tictactoe.connect(t2p1).newGame(1200)).to.emit(tictactoe, "GameCreated");
 
         // const game0 = await tictactoe.games(0);
         // console.log(game0);
@@ -298,149 +296,90 @@ describe('TicTacToe', function() {
         // expect(tictactoeDmBalance).to.equal("200000000000000000");
     });
 
-    xit("should accept exactly twenty five votes", () => {
-        var tictactoe;
-        var game_id;
-        return TicTacToe.deployed().then((instance) => {
-    	    tictactoe = instance;
-    	    return tictactoe.newGame();
-        }).then((result) => {
-        	eventArgs = getEventArgs(result, GAME_CREATED_EVENT);
-        	game_id = eventArgs.gameId;
+    it("should switch turns after 25+ votes", async () => {
+        // create a game
+        await expect(tictactoe.connect(t1p1).newGame(1200)).to.emit(tictactoe, "GameCreated");
 
-        	return tictactoe.joinGame(game_id, {from: accounts[0]});
-        }).then((result) => {
-        	eventArgs = getEventArgs(result, PLAYER_JOINED_EVENT);
-        	assert.isTrue(eventArgs !== false, "Player one did not join the game.");
-        	assert.equal(accounts[0], eventArgs.player, "The wrong player joined the game.");
-        	assert.equal(game_id.valueOf(), eventArgs.gameId.valueOf(), "Player one joined the wrong game.");
+        // await expect(tictactoe.connect(t2p1).newGame(1200)).to.emit(tictactoe, "GameCreated");
 
-        	return tictactoe.joinGame(game_id, {from: accounts[1]});
-        }).then((result) => {
-        	eventArgs = getEventArgs(result, PLAYER_JOINED_EVENT);
-        	assert.isTrue(eventArgs !== false, "Player two did not join the game.");
-        	assert.equal(accounts[1], eventArgs.player, "The wrong player joined the game.");
-        	assert.equal(game_id.valueOf(), eventArgs.gameId.valueOf(), "Player two joined the wrong game.");
+        // await dangermoon.connect(t1p1).approve(tictactoe.address, "250000000000000000");
+        // console.log((await dangermoon.balanceOf(t1p1.address)).toString());
+        await dangermoon.connect(t1p1).approve(tictactoe.address, "250000000000000000");
+        await tictactoe.connect(t1p1).voteMove(0, 15, 0, 0);
+        await dangermoon.connect(t1p2).approve(tictactoe.address, "250000000000000000");
+        await tictactoe.connect(t1p2).voteMove(0, 15, 0, 0);
+        await dangermoon.connect(t2p1).approve(tictactoe.address, "250000000000000000");
+        await tictactoe.connect(t2p1).voteMove(0, 25, 1, 1);
 
-        	return tictactoe.joinGame(game_id, {from: accounts[2]});
-        }).then((result) => {
-        	// assert that there is no event of a player that joined
-        	eventArgs = getEventArgs(result, PLAYER_JOINED_EVENT);
-        	assert.isTrue(eventArgs === false);
-        });
+        // await dangermoon.connect(t2p1).approve(tictactoe.address, "250000000000000000");
+        // await tictactoe.connect(t1p1).voteMove(0, 25, 0, 0);
+        // await tictactoe.connect(t2p1).voteMove(0, 25, 0, 0);
     });
 
-    xit("should let the players make moves", () => {
-        var tictactoe;
-        var game_id;
-        return TicTacToe.deployed().then((instance) => {
-    	    tictactoe = instance;
+    it("should let the players make moves", async () => {
+        // create a game
+        await expect(tictactoe.connect(t1p1).newGame(1200)).to.emit(tictactoe, "GameCreated");
+        // approve interactions
+        await dangermoon.connect(t1p1).approve(tictactoe.address, "750000000000000000");
+        await dangermoon.connect(t1p2).approve(tictactoe.address, "750000000000000000");
+        await dangermoon.connect(t1p3).approve(tictactoe.address, "750000000000000000");
+        await dangermoon.connect(t2p1).approve(tictactoe.address, "750000000000000000");
 
-    	    return tictactoe.newGame();
-        }).then((result) => {
-        	eventArgs = getEventArgs(result, GAME_CREATED_EVENT);
-        	game_id = eventArgs.gameId;
+        // let team 1 win
+        // console.log((await dangermoon.balanceOf(t1p1.address)).toString());
+        await tictactoe.connect(t1p1).voteMove(0, 15, 0, 0);
+        await tictactoe.connect(t1p2).voteMove(0, 15, 0, 0);
+        await tictactoe.connect(t2p1).voteMove(0, 25, 0, 1);
+        // console.log((await dangermoon.balanceOf(t1p1.address)).toString());
+        await tictactoe.connect(t1p1).voteMove(0, 15, 1, 1);
+        await tictactoe.connect(t1p3).voteMove(0, 15, 1, 1);
+        await tictactoe.connect(t2p1).voteMove(0, 25, 0, 2);
+        // console.log((await dangermoon.balanceOf(t1p1.address)).toString());
+        await tictactoe.connect(t1p1).voteMove(0, 25, 2, 2);
 
-        	return tictactoe.joinGame(game_id, {from: accounts[0]});
-        }).then((result) => {
-        	return tictactoe.joinGame(game_id, {from: accounts[1]});
-        }).then((result) => {
-        	return tictactoe.makeMove(game_id, 0, 0, {from: accounts[0]});
-        }).then((result) => {
-        	eventArgs = getEventArgs(result, PLAYER_MADE_MOVE_EVENT);
-        	assert.isTrue(eventArgs !== false, "Player did not make a move.");
-        	assert.equal(accounts[0], eventArgs.player, "The wrong player joined the game.");
-        	assert.equal(game_id.valueOf(), eventArgs.gameId.valueOf(), "Player made move in the wrong game.");
-        	assert.equal(0, eventArgs.xCoord.valueOf(), "Player made move in another cell.");
-        	assert.equal(0, eventArgs.yCoord.valueOf(), "Player made move in another cell.");
-
-        	return tictactoe.makeMove(game_id, 1, 1, {from: accounts[1]});
-        }).then((result) => {
-        	eventArgs = getEventArgs(result, PLAYER_MADE_MOVE_EVENT);
-        	assert.isTrue(eventArgs !== false, "Player did not make a move.");
-        	assert.equal(accounts[1], eventArgs.player, "The wrong player joined the game.");
-        	assert.equal(game_id.valueOf(), eventArgs.gameId.valueOf(), "Player made move in the wrong game.");
-        	assert.equal(1, eventArgs.xCoord.valueOf(), "Player made move in another cell.");
-        	assert.equal(1, eventArgs.yCoord.valueOf(), "Player made move in another cell.");
-
-        	return tictactoe.makeMove(game_id, 0, 1, {from: accounts[0]});
-        }).then((result) => {
-        	eventArgs = getEventArgs(result, PLAYER_MADE_MOVE_EVENT);
-        	assert.isTrue(eventArgs !== false, "Player did not make a move.");
-        	assert.equal(accounts[0], eventArgs.player, "The wrong player joined the game.");
-        	assert.equal(game_id.valueOf(), eventArgs.gameId.valueOf(), "Player made move in the wrong game.");
-        	assert.equal(0, eventArgs.xCoord.valueOf(), "Player made move in another cell.");
-        	assert.equal(1, eventArgs.yCoord.valueOf(), "Player made move in another cell.");
-
-        	return tictactoe.makeMove(game_id, 1, 2, {from: accounts[1]});
-        }).then((result) => {
-        	eventArgs = getEventArgs(result, PLAYER_MADE_MOVE_EVENT);
-        	assert.isTrue(eventArgs !== false, "Player did not make a move.");
-        	assert.equal(accounts[1], eventArgs.player, "The wrong player joined the game.");
-        	assert.equal(game_id.valueOf(), eventArgs.gameId.valueOf(), "Player made move in the wrong game.");
-        	assert.equal(1, eventArgs.xCoord.valueOf(), "Player made move in another cell.");
-        	assert.equal(2, eventArgs.yCoord.valueOf(), "Player made move in another cell.");
-
-        	return tictactoe.makeMove(game_id, 0, 2, {from: accounts[0]});
-        }).then((result) => {
-        	eventArgs = getEventArgs(result, GAME_OVER_EVENT);
-        	assert.isTrue(eventArgs !== false, "Game is not over.");
-        	assert.equal(1, eventArgs.winner, "The wrong player won the game (or draw).");
-        	assert.equal(game_id.valueOf(), eventArgs.gameId.valueOf(), "Player won the wrong game.");
+        // await logAllBalances("after playing");
+        await expectAllBalances({
+          "_tictactoe":  "1350000000000000000",
+          "_owner": "500000000000000000000000",
+          "_t1p1":      "44450000000000000000",
+          "_t1p2":      "44850000000000000000",
+          "_t1p3":      "44850000000000000000",
+          "_t2p1":      "44500000000000000000",
         });
+
+        // verify players can claim their winnings
+        await tictactoe.connect(t1p1).claimWinnings(0);
+        await tictactoe.connect(t1p2).claimWinnings(0);
+        await tictactoe.connect(t1p3).claimWinnings(0);
+
+        // cant claim 2x
+        await expect(tictactoe.connect(t1p1).claimWinnings(0)).to.be.reverted;
+        // didnt play
+        await expect(tictactoe.connect(owner).claimWinnings(0)).to.be.reverted;
+        // cant claim if you lost
+        await expect(tictactoe.connect(t2p1).claimWinnings(0)).to.be.reverted;
+
+        // await logAllBalances("after claiming");
+        await expectAllBalances({
+          "_tictactoe":                    "2",
+          "_owner": "500000134999999999999998",
+          "_t1p1":      "45236176470588235294",
+          "_t1p2":      "45064411764705882353",
+          "_t1p3":      "45064411764705882353",
+          "_t2p1":      "44500000000000000000",
+        });
+
     });
 
-    xit("should not let the same player make two moves in a row", () => {
-        var tictactoe;
-        var game_id;
-        return TicTacToe.deployed().then((instance) => {
-    	    tictactoe = instance;
-
-    	    return tictactoe.newGame();
-        }).then((result) => {
-        	eventArgs = getEventArgs(result, GAME_CREATED_EVENT);
-        	game_id = eventArgs.gameId;
-
-        	return tictactoe.joinGame(game_id, {from: accounts[0]});
-        }).then((result) => {
-        	return tictactoe.joinGame(game_id, {from: accounts[1]});
-        }).then((result) => {
-        	return tictactoe.makeMove(game_id, 0, 0, {from: accounts[0]});
-        }).then((result) => {
-        	return tictactoe.makeMove(game_id, 0, 1, {from: accounts[1]});
-        }).then((result) => {
-        	return tictactoe.makeMove(game_id, 0, 2, {from: accounts[1]});
-        }).then((result) => {
-        	// assert that there is no event of a player that made a move
-        	eventArgs = getEventArgs(result, PLAYER_MADE_MOVE_EVENT);
-        	assert.isTrue(eventArgs === false);
-        });
+    xit("should not let the same player make two moves in a row", async () => {
+        await tictactoe.connect(t1p1).voteMove(0, 25, 0, 0);
+        await tictactoe.connect(t1p1).voteMove(0, 25, 0, 1);
+        await tictactoe.connect(t1p1).voteMove(0, 25, 0, 2);
     });
 
-    xit("should not let a player make a move at already filled coordinates", () => {
-        var tictactoe;
-        var game_id;
-        return TicTacToe.deployed().then((instance) => {
-    	    tictactoe = instance;
-
-    	    return tictactoe.newGame();
-        }).then((result) => {
-        	eventArgs = getEventArgs(result, GAME_CREATED_EVENT);
-        	game_id = eventArgs.gameId;
-
-        	return tictactoe.joinGame(game_id, {from: accounts[0]});
-        }).then((result) => {
-        	return tictactoe.joinGame(game_id, {from: accounts[1]});
-        }).then((result) => {
-        	return tictactoe.makeMove(game_id, 0, 0, {from: accounts[0]});
-        }).then((result) => {
-        	return tictactoe.makeMove(game_id, 0, 1, {from: accounts[1]});
-        }).then((result) => {
-        	return tictactoe.makeMove(game_id, 0, 1, {from: accounts[0]});
-        }).then((result) => {
-        	// assert that there is no event of a player that made a move
-        	eventArgs = getEventArgs(result, PLAYER_MADE_MOVE_EVENT);
-        	assert.isTrue(eventArgs === false);
-        });
+    xit("should not let a player make a move at already filled coordinates", async () => {
+        await tictactoe.connect(t1p1).voteMove(0, 25, 0, 0);
+        await tictactoe.connect(t1p1).voteMove(0, 25, 0, 1);
+        await tictactoe.connect(t1p1).voteMove(0, 25, 0, 1);
     });
 });

@@ -332,6 +332,7 @@ contract DangerMoonTicTacToe is Ownable {
     // Winners enumerates all possible winners
     enum Winners { None, TeamOne, TeamTwo, Draw }
 
+    // TODO add time to all events?
     // GameCreated signals that `creator` created a new game with this `gameId`.
     event GameCreated(uint256 gameId, address creator, bool isTeamOneEven);
     // PlayerJoinedGame signals that `player` joined the game with the id `gameId`.
@@ -343,6 +344,7 @@ contract DangerMoonTicTacToe is Ownable {
     // TeamMadeMove signals that `team` filled in the board of the game with
     // the id `gameId`. They did so at the coordinates `xCoord`, `yCoord`.
     event TeamMadeMove(uint256 gameId, uint8 teamNumber, uint8 xCoord, uint8 yCoord);
+    event TeamSkippedMove(uint256 gameId, uint8 teamNumber);
     // GameOver signals that the game with the id `gameId` is over.
     // The winner is indicated by `winner`. No more moves are allowed in this game.
     event GameOver(uint256 gameId, Winners winner);
@@ -362,8 +364,7 @@ contract DangerMoonTicTacToe is Ownable {
         uint256 blocksPerTurn;
 
         // Accounting
-        uint256 teamOnePrizePool;
-        uint256 teamTwoPrizePool;
+        uint256 prizePool;
         uint256 teamOneTotalVoteFees;
         uint256 teamTwoTotalVoteFees;
 
@@ -376,6 +377,8 @@ contract DangerMoonTicTacToe is Ownable {
         Winners winner;
         Teams turn;
         Teams[3][3] board;
+
+        // Tracking player deposits for refunds + prize payouts
         mapping(address => uint256) teamOneVoteFees;
         mapping(address => uint256) teamTwoVoteFees;
     }
@@ -389,118 +392,123 @@ contract DangerMoonTicTacToe is Ownable {
     uint256 public numGames;
 
     // determines number of votes per in-game turn
-    uint8 public minimumVotesPerTurn;
+    uint8 public minimumVotesPerTurn = 25;
+    // determines number of blocks per in-game turn
+    uint16 public minimumBlocksPerTurn = 1200; // 1200 blocks is about 1 hour on BSC
     // dangermoon team's cut of prize pool
-    uint8 private takeFeePercent = 10;
-
-    address public dangermoonAddress;
+    uint8 public takeFeePercent = 10;
+    // cost of a tictactoe vote as a percent of dangermoon's daily minimum entry
+    uint8 public entryFeePercent = 10;
+    // dangermoon address (to make transfers)
+    IDangerMoon public dangermoon;
 
     constructor(address _dangermoonAddress) public {
-      dangermoonAddress = _dangermoonAddress;
-      minimumVotesPerTurn = 25;
+      dangermoon = IDangerMoon(_dangermoonAddress);
     }
 
-    function setTakeFeePercent(uint8 _takeFeePercent) external onlyOwner() {
+    function setTakeFeePercent(uint8 _takeFeePercent) public onlyOwner() {
         takeFeePercent = _takeFeePercent;
     }
 
-    function setMinimumVotesPerTurn(uint8 _minimumVotesPerTurn) external onlyOwner() {
+    function setEntryFeePercent(uint8 _entryFeePercent) public onlyOwner() {
+        entryFeePercent = _entryFeePercent;
+    }
+
+    function setMinimumVotesPerTurn(uint8 _minimumVotesPerTurn) public onlyOwner() {
         minimumVotesPerTurn = _minimumVotesPerTurn;
+    }
+
+    function setMinimumBlocksPerTurn(uint8 _minimumBlocksPerTurn) public onlyOwner() {
+        minimumBlocksPerTurn = _minimumBlocksPerTurn;
     }
 
     function withdrawDangerMoon(uint256 amount) public onlyOwner() {
         if (amount == 0) {
-          amount = IDangerMoon(dangermoonAddress).balanceOf(address(this));
+          amount = dangermoon.balanceOf(address(this));
         }
-        IDangerMoon(dangermoonAddress).transferFrom(address(this), owner(), amount);
+        dangermoon.transferFrom(address(this), owner(), amount);
     }
 
     // newGame creates a new game and returns the new game's `gameId`.
     // The `gameId` is required in subsequent calls to identify the game.
-    function newGame(uint8 _blocksPerTurn) public returns (uint256 gameId) {
+    function newGame(uint256 _blocksPerTurn) public returns (uint256 gameId) {
+        require(
+          _blocksPerTurn >= minimumBlocksPerTurn,
+          "Turns must be at least the minimum number of blocks"
+        );
         Game memory game;
         game.turn = Teams.TeamOne;
         game.isTeamOneEven = (uint256(msg.sender).mod(2) == 0);
-        game.turnEndBlock = block.number + _blocksPerTurn;
+        game.turnEndBlock = block.number.add(_blocksPerTurn);
         game.blocksPerTurn = _blocksPerTurn;
 
-        numGames = numGames.add(1);
         games[numGames] = game;
+        numGames = numGames.add(1);
 
         emit GameCreated(numGames, msg.sender, game.isTeamOneEven);
 
         return numGames;
     }
 
-    function isPlayerOnTeamOne(bool isTeamOneEven) public view returns (bool) {
-      if (isTeamOneEven) {
-        return (uint256(msg.sender).mod(2) == 0);
-      }
-      return (uint256(msg.sender).mod(2) != 0);
+    function isPlayerOnTeamOne(bool isTeamOneEven, address player) private pure returns (bool) {
+        if (isTeamOneEven) {
+            return (uint256(player).mod(2) == 0);
+        }
+        return (uint256(player).mod(2) != 0);
     }
 
-    // joinGame lets the sender of the message join the game with the id `gameId`.
-    // It returns `success = true` when joining the game was possible and
-    // `false` otherwise.
-    // `reason` indicates why a game was joined or not joined.
-    function joinGame(uint128 gameId) public returns (bool success, string memory reason) {
-        require(gameId < numGames, "No such game exists.");
-
-        Game storage game = games[gameId];
-
-        // Assign the new msg.sender to team 1 if their address ending matches game creator's
-        if (isPlayerOnTeamOne(game.isTeamOneEven)) {
-            game.teamOne[msg.sender] = 0;
-            emit PlayerJoinedGame(gameId, msg.sender, uint8(Teams.TeamOne));
-            return (true, "Joined team one.");
+    function getPlayerTeam(uint256 gameId, address player) public view returns (Teams team) {
+        if (isPlayerOnTeamOne(games[gameId].isTeamOneEven, player)) {
+            return Teams.TeamOne;
         }
-
-        // Assign the new msg.sender to team 2 if their address ending doesnt match game creator's
-        game.teamTwo[msg.sender] = 0;
-        emit PlayerJoinedGame(gameId, msg.sender, uint8(Teams.TeamTwo));
-        return (true, "Joined team two. Only team one can make the first move.");
+        return Teams.TeamTwo;
     }
 
     // voteMove denotes a player votes to move the game board.
     // The player is identified as the sender of the message.
-    // once 25 votes are reached, the turn is over
+    // once minimumVotesPerTurn votes are reached, the turn is over
     // once the elapsed time has passed, the turn is over
-    function voteMove(uint128 gameId, uint8 numVotes, uint8 xCoord, uint8 yCoord) public returns (bool success, string memory reason) {
+    function voteMove(uint256 gameId, uint256 numVotes, uint8 xCoord, uint8 yCoord) public returns (bool success, string memory reason) {
         Game storage game = games[gameId];
 
         // CHECKS
         require(gameId < numGames, "No such game exists.");
         require(game.winner == Winners.None, "The game already has a winner, it is over.");
         require(game.board[xCoord][yCoord] == Teams.None, "There is already a mark at the given coordinates.");
+        require(0 <= xCoord && xCoord <= 2, "xCoordinates can only be 0, 1, or 2.");
+        require(0 <= yCoord && yCoord <= 2, "yCoordinates can only be 0, 1, or 2.");
 
         // Check if we have to end the previous team's turn
         if (block.number > game.turnEndBlock) {
-          Winners winner = endVote(gameId, game);
-          // We check for winners after each vote concludes
-          if (winner != Winners.None) {
-              return (true, "The game is over.");
-          }
+            Winners winner = endVote(gameId);
+            // We check for winners after each vote concludes
+            if (winner != Winners.None) return (true, "The game is over.");
         }
 
+        // console.log("game.turn");
+        // console.log(uint8(game.turn));
+        // console.log("game.totalVotesThisTurn");
+        // console.log(game.totalVotesThisTurn);
+
         // Players can only vote for a move on their team's turn
-        bool _isPlayerOnTeamOne = isPlayerOnTeamOne(game.isTeamOneEven);
-        require(_isPlayerOnTeamOne && game.turn == Teams.TeamOne, "It is not your teams turn.");
-        require(!_isPlayerOnTeamOne && game.turn == Teams.TeamTwo, "It is not your teams turn.");
+        require(game.turn == getPlayerTeam(gameId, msg.sender), "It is not your teams turn.");
 
         // EFFECTS
         // Transfer dangermoon vote-fee to this contract
-        uint256 voteFee = IDangerMoon(dangermoonAddress)._minimumTokensForReflection().div(10).mul(numVotes);
-        IDangerMoon(dangermoonAddress).transferFrom(msg.sender, address(this), voteFee);
+        uint256 tenUsdWorth = dangermoon._minimumTokensForReflection();
+        uint256 voteFee = tenUsdWorth.mul(entryFeePercent).div(10**2).mul(numVotes);
+        uint256 allowance = dangermoon.allowance(msg.sender, address(this));
+        require(allowance >= voteFee, "This contract is not approved to transfer enough DangerMoon.");
+        dangermoon.transferFrom(msg.sender, address(this), voteFee);
 
-        // Update game prize pool and player's vote-contribution
+        // Update game prize pool and player's vote-contribution to weight prize payouts
+        game.prizePool = game.prizePool.add(voteFee);
         if (game.turn == Teams.TeamOne) {
-          game.teamTwoPrizePool = game.teamTwoPrizePool.add(voteFee);
-          game.teamOneTotalVoteFees = game.teamOneTotalVoteFees.add(voteFee);
-          game.teamOneVoteFees[msg.sender] = game.teamOneVoteFees[msg.sender].add(voteFee);
+            game.teamOneTotalVoteFees = game.teamOneTotalVoteFees.add(voteFee);
+            game.teamOneVoteFees[msg.sender] = game.teamOneVoteFees[msg.sender].add(voteFee);
         } else {
-          game.teamOnePrizePool = game.teamOnePrizePool.add(voteFee);
-          game.teamTwoTotalVoteFees = game.teamTwoTotalVoteFees.add(voteFee);
-          game.teamTwoVoteFees[msg.sender] = game.teamTwoVoteFees[msg.sender].add(voteFee);
+            game.teamTwoTotalVoteFees = game.teamTwoTotalVoteFees.add(voteFee);
+            game.teamTwoVoteFees[msg.sender] = game.teamTwoVoteFees[msg.sender].add(voteFee);
         }
 
         // Record the player's vote
@@ -510,60 +518,83 @@ contract DangerMoonTicTacToe is Ownable {
 
         // A vote was made and there is no winner yet.
         // Let the next team play if we have reached max votes for this turn.
-        if (game.totalVotesThisTurn > minimumVotesPerTurn) {
-          Winners winner = endVote(gameId, game);
-          // We check for winners after each vote concludes
-          if (winner != Winners.None) {
-              return (true, "The game is over.");
-          }
+        if (game.totalVotesThisTurn >= minimumVotesPerTurn) {
+            Winners winner = endVote(gameId);
+            // We check for winners after each vote concludes
+            if (winner != Winners.None) return (true, "The game is over.");
         }
 
         return (true, "");
     }
 
     // endVote updates game state given all players votes.
-    function endVote(uint8 gameId, Game memory _game) private returns (Winners winner) {
-        // uint128[3][3][2] memory _votes;
-        // for (uint8 x = 0; x < 3; x++) {
-        //     for (uint8 y = 0; y < 3; y++) {
-        //         if (_board[x][y] == Teams.None) {
-        //             return false;
-        //         }
-        //     }
-        // }
+    function endVote(uint256 gameId) private returns (Winners winner) {
+        Game storage game = games[gameId];
 
-        // TODO
-        // Now the vote is recorded and the according event emitted.
-        // game.board[xCoord][yCoord] = game.turn;
-        // emit PlayerVotesMove(gameId, msg.sender, xCoord, yCoord);
-
-        // Check if there is a winner now that we have a new move.
-        Winners winner = calculateWinner(_game.board);
-        if (winner != Winners.None) {
-            // If there is a winner (can be a `Draw`) it must be recorded
-            _game.winner = winner;
-            emit GameOver(gameId, winner);
-            return winner;
+        uint256 maxVote = 0;
+        uint8 maxVoteX;
+        uint8 maxVoteY;
+        for (uint8 x = 0; x < 3; x++) {
+            for (uint8 y = 0; y < 3; y++) {
+                if (game.votes[x][y] > maxVote) {
+                    maxVote = game.votes[x][y];
+                    maxVoteX = x;
+                    maxVoteY = y;
+                }
+            }
         }
 
-        // clear current turn votes
+        Winners _winner = Winners.None;
 
-        // change whose turn it is for the given `_game`.
-        if (_game.turn == Teams.TeamOne) {
-            _game.turn = Teams.TeamTwo;
+        if (maxVote == 0) {
+            // The team skipped voting...
+            emit TeamSkippedMove(gameId, uint8(game.turn));
+
+            // They lose by default
+            if (game.turn == Teams.TeamOne) {
+                _winner = Winners.TeamTwo;
+            } else {
+                _winner = Winners.TeamOne;
+            }
+
         } else {
-            _game.turn = Teams.TeamOne;
+            // The team voted...
+            // Record the vote result
+            game.board[maxVoteX][maxVoteY] = game.turn;
+            emit TeamMadeMove(gameId, uint8(game.turn), maxVoteX, maxVoteY);
+
+            // Check if there is a winner now that we have a new move.
+            _winner = calculateWinner(game.board);
+        }
+
+        // console.log("_winner");
+        // console.log(uint8(_winner));
+
+        if (_winner != Winners.None) {
+            // If there is a winner (can be a `Draw`) it must be recorded
+            game.winner = _winner;
+            emit GameOver(gameId, game.winner);
+            return game.winner;
+        }
+
+        // Make it the next team's turn now that voting concluded
+        if (game.turn == Teams.TeamOne) {
+            game.turn = Teams.TeamTwo;
+        } else {
+            game.turn = Teams.TeamOne;
         }
 
         // Begin voting for next team
-        _game.turnEndBlock = block.number + _game.blocksPerTurn;
-        _game.totalVotesThisTurn = 0;
+        game.turnEndBlock = block.number.add(game.blocksPerTurn);
+        game.totalVotesThisTurn = 0;
+        // Clear current votes
+        delete game.votes;
 
         return Winners.None;
     }
 
     // getCurrentTeam returns the team that should make the next move.
-    // Returns the `0x0` address if it is no team's turn.
+    // Returns the `None` team if it is no team's turn.
     function getCurrentTeam(Game storage _game) private view returns (Teams team) {
         if (_game.turn == Teams.TeamOne) {
             return Teams.TeamOne;
@@ -685,19 +716,73 @@ contract DangerMoonTicTacToe is Ownable {
         return true;
     }
 
-    function claimWinnings(uint128 gameId) public {
+    function claimWinnings(uint256 gameId) public {
       Game storage game = games[gameId];
+      Teams playerTeam = getPlayerTeam(gameId, msg.sender);
 
       // CHECKS
       require(gameId < numGames, "No such game exists.");
-      // TODO distribute winnins
-      // Check winners...
-      // None, TeamOne, TeamTwo, Draw
-      require(game.winner != Winners.None, "The game already doesnt have a winner yet, it is not over.");
-      // TODO require player is on the winning team
+      require(game.winner != Winners.None, "The game doesnt have a winner yet, it is not over.");
+      require(
+        game.winner == Winners.Draw || uint8(game.winner) == uint8(playerTeam),
+        "The game was not a draw and your team lost"
+      );
+      require(
+        game.teamOneVoteFees[msg.sender] != 0 || game.teamTwoVoteFees[msg.sender] != 0,
+        "You have no DangerMoon to claim, you may have already claimed it."
+      );
 
-      // TODO
-      uint256 playerWinnings = 0;
-      IDangerMoon(dangermoonAddress).transferFrom(address(this), msg.sender, playerWinnings);
+      if (game.winner == Winners.Draw) {
+
+        // A draw lets you pull your deposit out minus our take fee
+        uint256 playerDeposit;
+        if (playerTeam == Teams.TeamOne) {
+            playerDeposit = game.teamOneVoteFees[msg.sender];
+            game.teamOneVoteFees[msg.sender] = 0;
+        } else {
+            playerDeposit = game.teamTwoVoteFees[msg.sender];
+            game.teamTwoVoteFees[msg.sender] = 0;
+        }
+        uint256 takeFee = playerDeposit.mul(takeFeePercent).div(10**2);
+        dangermoon.transfer(owner(), takeFee);
+        dangermoon.transfer(msg.sender, playerDeposit.sub(takeFee));
+
+      } else {
+
+        // Distribute winnings
+        uint256 playerVoteFees;
+        uint256 totalVoteFees;
+        if (playerTeam == Teams.TeamOne) {
+            playerVoteFees = game.teamOneVoteFees[msg.sender];
+            totalVoteFees = game.teamOneTotalVoteFees;
+            game.teamOneVoteFees[msg.sender] = 0;
+        } else {
+            playerVoteFees = game.teamTwoVoteFees[msg.sender];
+            totalVoteFees = game.teamTwoTotalVoteFees;
+            game.teamTwoVoteFees[msg.sender] = 0;
+        }
+
+        uint256 playerWinnings = playerVoteFees.mul(10**20).div(totalVoteFees).mul(game.prizePool).div(10**20);
+        uint256 takeFee = playerWinnings.mul(takeFeePercent).div(10**2);
+
+        console.log("game.prizePool");
+        console.log(game.prizePool);
+        console.log("totalVoteFees");
+        console.log(totalVoteFees);
+        console.log("playerVoteFees");
+        console.log(playerVoteFees);
+        console.log("playerWinnings%");
+        console.log(playerVoteFees.mul(10**20).div(totalVoteFees));
+        console.log("playerWinnings");
+        console.log(playerWinnings);
+        console.log("takeFee");
+        console.log(takeFee);
+        console.log("\n");
+
+        dangermoon.transfer(owner(), takeFee);
+        dangermoon.transfer(msg.sender, playerWinnings.sub(takeFee));
+
+      }
     }
+
 }
