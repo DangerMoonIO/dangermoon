@@ -3,9 +3,6 @@ const { MNEMONIC } = require('../secrets.json');
 const { ethers } = require("hardhat");
 const { expect } = require("chai");
 
-// const utils = require("./helpers/utils");
-const time = require("./helpers/time");
-
 const WETH_ADDRESS = "0xd0A1E359811322d97991E03f863a0C30C2cF029C";
 
 let linkContract;

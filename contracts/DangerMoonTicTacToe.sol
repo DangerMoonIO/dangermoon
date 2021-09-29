@@ -359,25 +359,18 @@ contract DangerMoonTicTacToe is Ownable {
     // That means that players are free to fill in any cell at the
     // start of the game.
     struct Game {
-        // Timing
         uint256 turnEndBlock;
         uint256 blocksPerTurn;
-
-        // Accounting
         uint256 prizePool;
         uint256 teamOneTotalVoteFees;
         uint256 teamTwoTotalVoteFees;
-
-        // Voting
-        uint256[3][3] votes;
         uint256 totalVotesThisTurn;
-
-        // Game state
+        uint256 turnNumber;
+        uint256[3][3] votes;
+        Teams[3][3] board;
         bool isTeamOneEven;
         Winners winner;
         Teams turn;
-        Teams[3][3] board;
-
         // Tracking player deposits for refunds + prize payouts
         mapping(address => uint256) teamOneVoteFees;
         mapping(address => uint256) teamTwoVoteFees;
@@ -399,7 +392,7 @@ contract DangerMoonTicTacToe is Ownable {
     uint8 public takeFeePercent = 10;
     // cost of a tictactoe vote as a percent of dangermoon's daily minimum entry
     uint8 public entryFeePercent = 10;
-    // dangermoon address (to make transfers)
+    // dangermoon address (for transfers, reading the daily $10 price, etc)
     IDangerMoon public dangermoon;
 
     constructor(address _dangermoonAddress) public {
@@ -422,11 +415,21 @@ contract DangerMoonTicTacToe is Ownable {
         minimumBlocksPerTurn = _minimumBlocksPerTurn;
     }
 
+    function getGameVotes(uint256 gameId) public view returns (uint256[3][3] memory) {
+        return games[gameId].votes;
+    }
+
+    function getGameBoard(uint256 gameId) public view returns (Teams[3][3] memory) {
+        return games[gameId].board;
+    }
+
     function withdrawDangerMoon(uint256 amount) public onlyOwner() {
         if (amount == 0) {
-          amount = dangermoon.balanceOf(address(this));
+            amount = dangermoon.balanceOf(address(this));
         }
-        dangermoon.transferFrom(address(this), owner(), amount);
+        if (amount > 0) {
+            dangermoon.transfer(owner(), amount);
+        }
     }
 
     // newGame creates a new game and returns the new game's `gameId`.
@@ -473,10 +476,16 @@ contract DangerMoonTicTacToe is Ownable {
 
         // CHECKS
         require(gameId < numGames, "No such game exists.");
+        require(numVotes <= minimumVotesPerTurn, "Too many votes.");
         require(game.winner == Winners.None, "The game already has a winner, it is over.");
         require(game.board[xCoord][yCoord] == Teams.None, "There is already a mark at the given coordinates.");
-        require(0 <= xCoord && xCoord <= 2, "xCoordinates can only be 0, 1, or 2.");
-        require(0 <= yCoord && yCoord <= 2, "yCoordinates can only be 0, 1, or 2.");
+        require(xCoord <= 2 && yCoord <= 2, "coordinates can only be 0, 1, or 2.");
+        require(
+          game.turnNumber < 4 ||
+          game.teamOneVoteFees[msg.sender] != 0 ||
+          game.teamTwoVoteFees[msg.sender] != 0,
+          "You must join a game before the fourth round."
+        );
 
         // Check if we have to end the previous team's turn
         if (block.number > game.turnEndBlock) {
@@ -484,11 +493,6 @@ contract DangerMoonTicTacToe is Ownable {
             // We check for winners after each vote concludes
             if (winner != Winners.None) return (true, "The game is over.");
         }
-
-        // console.log("game.turn");
-        // console.log(uint8(game.turn));
-        // console.log("game.totalVotesThisTurn");
-        // console.log(game.totalVotesThisTurn);
 
         // Players can only vote for a move on their team's turn
         require(game.turn == getPlayerTeam(gameId, msg.sender), "It is not your teams turn.");
@@ -547,6 +551,7 @@ contract DangerMoonTicTacToe is Ownable {
         Winners _winner = Winners.None;
 
         if (maxVote == 0) {
+
             // The team skipped voting...
             emit TeamSkippedMove(gameId, uint8(game.turn));
 
@@ -567,9 +572,6 @@ contract DangerMoonTicTacToe is Ownable {
             _winner = calculateWinner(game.board);
         }
 
-        // console.log("_winner");
-        // console.log(uint8(_winner));
-
         if (_winner != Winners.None) {
             // If there is a winner (can be a `Draw`) it must be recorded
             game.winner = _winner;
@@ -586,6 +588,7 @@ contract DangerMoonTicTacToe is Ownable {
 
         // Begin voting for next team
         game.turnEndBlock = block.number.add(game.blocksPerTurn);
+        game.turnNumber = game.turnNumber.add(1);
         game.totalVotesThisTurn = 0;
         // Clear current votes
         delete game.votes;
@@ -725,7 +728,7 @@ contract DangerMoonTicTacToe is Ownable {
       require(game.winner != Winners.None, "The game doesnt have a winner yet, it is not over.");
       require(
         game.winner == Winners.Draw || uint8(game.winner) == uint8(playerTeam),
-        "The game was not a draw and your team lost"
+        "The game was not a draw and your team lost."
       );
       require(
         game.teamOneVoteFees[msg.sender] != 0 || game.teamTwoVoteFees[msg.sender] != 0,
@@ -761,24 +764,8 @@ contract DangerMoonTicTacToe is Ownable {
             totalVoteFees = game.teamTwoTotalVoteFees;
             game.teamTwoVoteFees[msg.sender] = 0;
         }
-
         uint256 playerWinnings = playerVoteFees.mul(10**20).div(totalVoteFees).mul(game.prizePool).div(10**20);
         uint256 takeFee = playerWinnings.mul(takeFeePercent).div(10**2);
-
-        console.log("game.prizePool");
-        console.log(game.prizePool);
-        console.log("totalVoteFees");
-        console.log(totalVoteFees);
-        console.log("playerVoteFees");
-        console.log(playerVoteFees);
-        console.log("playerWinnings%");
-        console.log(playerVoteFees.mul(10**20).div(totalVoteFees));
-        console.log("playerWinnings");
-        console.log(playerWinnings);
-        console.log("takeFee");
-        console.log(takeFee);
-        console.log("\n");
-
         dangermoon.transfer(owner(), takeFee);
         dangermoon.transfer(msg.sender, playerWinnings.sub(takeFee));
 
