@@ -415,6 +415,15 @@ contract DangerMoonTicTacToe is Ownable {
         minimumBlocksPerTurn = _minimumBlocksPerTurn;
     }
 
+    function withdrawDangerMoon(uint256 amount) public onlyOwner() {
+        if (amount == 0) {
+            amount = dangermoon.balanceOf(address(this));
+        }
+        if (amount > 0) {
+            dangermoon.transfer(owner(), amount);
+        }
+    }
+
     function getGameVotes(uint256 gameId) public view returns (uint256[3][3] memory) {
         return games[gameId].votes;
     }
@@ -423,13 +432,28 @@ contract DangerMoonTicTacToe is Ownable {
         return games[gameId].board;
     }
 
-    function withdrawDangerMoon(uint256 amount) public onlyOwner() {
-        if (amount == 0) {
-            amount = dangermoon.balanceOf(address(this));
+    function getGamePayouts(uint256 gameId) public view returns (uint256 draw, uint256 win) {
+
+        Game storage game = games[gameId];
+        Teams playerTeam = getPlayerTeam(gameId, msg.sender);
+
+        uint256 playerDeposit;
+        uint256 totalVoteFees;
+        if (playerTeam == Teams.TeamOne) {
+            playerDeposit = game.teamOneVoteFees[msg.sender];
+            totalVoteFees = game.teamOneTotalVoteFees;
+        } else {
+            playerDeposit = game.teamTwoVoteFees[msg.sender];
+            totalVoteFees = game.teamTwoTotalVoteFees;
         }
-        if (amount > 0) {
-            dangermoon.transfer(owner(), amount);
-        }
+        uint256 playerWinnings = playerDeposit.mul(10**20).div(totalVoteFees).mul(game.prizePool).div(10**20);
+        uint256 drawTakeFee = playerDeposit.mul(takeFeePercent).div(10**2);
+        uint256 winTakeFee = playerWinnings.mul(takeFeePercent).div(10**2);
+
+        return (
+          playerDeposit.sub(drawTakeFee),
+          playerWinnings.sub(winTakeFee)
+        );
     }
 
     // newGame creates a new game and returns the new game's `gameId`.
@@ -467,7 +491,7 @@ contract DangerMoonTicTacToe is Ownable {
         return Teams.TeamTwo;
     }
 
-    // voteMove denotes a player votes to move the game board.
+    // voteMove denotes a player votes to make a move on the game board.
     // The player is identified as the sender of the message.
     // once minimumVotesPerTurn votes are reached, the turn is over
     // once the elapsed time has passed, the turn is over
@@ -753,18 +777,18 @@ contract DangerMoonTicTacToe is Ownable {
       } else {
 
         // Distribute winnings
-        uint256 playerVoteFees;
+        uint256 playerDeposit;
         uint256 totalVoteFees;
         if (playerTeam == Teams.TeamOne) {
-            playerVoteFees = game.teamOneVoteFees[msg.sender];
+            playerDeposit = game.teamOneVoteFees[msg.sender];
             totalVoteFees = game.teamOneTotalVoteFees;
             game.teamOneVoteFees[msg.sender] = 0;
         } else {
-            playerVoteFees = game.teamTwoVoteFees[msg.sender];
+            playerDeposit = game.teamTwoVoteFees[msg.sender];
             totalVoteFees = game.teamTwoTotalVoteFees;
             game.teamTwoVoteFees[msg.sender] = 0;
         }
-        uint256 playerWinnings = playerVoteFees.mul(10**20).div(totalVoteFees).mul(game.prizePool).div(10**20);
+        uint256 playerWinnings = playerDeposit.mul(10**20).div(totalVoteFees).mul(game.prizePool).div(10**20);
         uint256 takeFee = playerWinnings.mul(takeFeePercent).div(10**2);
         dangermoon.transfer(owner(), takeFee);
         dangermoon.transfer(msg.sender, playerWinnings.sub(takeFee));

@@ -13,11 +13,14 @@ async function main() {
   // manually to make sure everything is compiled
   // await hre.run('compile');
 
+
   // most recently deployed dangermoon on kovan
-  const DANGERMOON_KOVAN_ADDRESS = "0xfa1e56f8bc6af69ce4ae36f2e6e5412e06fc6e57";
+  const DANGERMOON_KOVAN_ADDRESS = "0x90A7b170F713f96775e5aa750425a93F9ca1B26E";
 
   // We get the contract to deploy
-  const tictactoe = await TicTacToe.deploy(DANGERMOON_KOVAN_ADDRESS);
+  const DangerMoonTicTacToe = await hre.ethers.getContractFactory("DangerMoonTicTacToe");
+
+  const tictactoe = await DangerMoonTicTacToe.deploy(DANGERMOON_KOVAN_ADDRESS);
 
   await tictactoe.deployed();
 

@@ -394,6 +394,10 @@ describe('TicTacToe', function() {
           "_t2p1":      "44500000000000000000",
         });
 
+        // const gamePayoutsBefore = await tictactoe.connect(t1p1).getGamePayouts(0);
+        // console.log(gamePayoutsBefore.draw.toString());
+        // console.log(gamePayoutsBefore.win.toString());
+
         // verify players can claim their winnings
         await tictactoe.connect(t1p1).claimWinnings(0);
         await tictactoe.connect(t1p2).claimWinnings(0);
@@ -412,6 +416,10 @@ describe('TicTacToe', function() {
         // cant claim if you lost
         await expect(tictactoe.connect(t2p1).claimWinnings(0))
           .to.be.revertedWith("The game was not a draw and your team lost.");
+
+        // const gamePayoutsAfter = await tictactoe.connect(t1p1).getGamePayouts(0);
+        // console.log(gamePayoutsAfter.draw.toString());
+        // console.log(gamePayoutsAfter.win.toString());
 
         // await logAllBalances("after claiming");
         await expectAllBalances({
