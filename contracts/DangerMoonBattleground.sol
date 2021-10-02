@@ -1,4 +1,5 @@
 pragma solidity ^0.6.12;
+pragma experimental ABIEncoderV2;
 
 // SPDX-License-Identifier: Unlicensed
 
@@ -150,18 +151,6 @@ library SafeMath {
         return a % b;
     }
 
-    function sqrt(uint256 y) internal pure returns (uint256 z) {
-        if (y > 3) {
-            z = y;
-            uint256 x = y / 2 + 1;
-            while (x < z) {
-                z = x;
-                x = (y / x + x) / 2;
-            }
-        } else if (y != 0) {
-            z = 1;
-        }
-    }
 }
 
 abstract contract Context {
@@ -392,7 +381,7 @@ contract DangerMoonBattleground is Ownable {
     }
 
     modifier validateCoordinates(uint256 gameId, uint8 x, uint8 y) {
-        require(x < games[gameId].width && y < games[gameId].height, "Coordinates not on board.")
+        require(x < games[gameId].width && y < games[gameId].height, "Coordinates not on board.");
         _;
     }
 
@@ -424,6 +413,19 @@ contract DangerMoonBattleground is Ownable {
 
     function random() private view returns (uint256) {
         return uint256(keccak256(abi.encodePacked(block.difficulty, block.timestamp, block.number)));
+    }
+
+    function sqrt(uint8 y) internal pure returns (uint8 z) {
+        if (y > 3) {
+            z = y;
+            uint8 x = y / 2 + 1;
+            while (x < z) {
+                z = x;
+                x = (y / x + x) / 2;
+            }
+        } else if (y != 0) {
+            z = 1;
+        }
     }
 
     function setTakeFeePercent(uint8 _takeFeePercent) public onlyOwner() {
