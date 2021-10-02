@@ -23,11 +23,11 @@ struct Game {
   uint256 mustJoinByBlock;
   uint256 voteEndBlock;
   uint256 prizePool;
+  uint16 width;
+  uint16 height;
   uint8 ante;
   uint8 playerCount;
   uint8 playerLimit;
-  uint8 width;
-  uint8 height;
   Piece[][] board;
   uint8[][] votes;
   mapping(address => Piece) dead;
@@ -35,17 +35,18 @@ struct Game {
 mapping(uint256 => Game) public games;
 uint256 public numGames;
 
-createGame (width, height, playerLimit, ante)
+createGame (playerLimit, ante)
 - checks inputs are reasonable
 - creates game struct, adds to list of games
+- width and height are determined by playerLimit
 - increments numGames
-- calls joinGame() for sender
+- ?? calls joinGame() for sender
 
 joinGame (gameId) returns (x, y)
 - checks that game exists
 - checks that game is not full
 - checks that game is not too old to join
-- transfers ante from sender into prizePool
+- transfers entryFee from sender into prizePool
 - increments game player count
 - grants sender a piece on the game board with default stats, randomly located
 - sets lastEnergyClaim to block.number
@@ -89,6 +90,8 @@ grantEnergy (gameId, x, y, targetX, targetY)
 - checks that targetX,targetY is alive
 - subtracts 1 energy from your piece
 - grants 1 energy to the piece on targetX,targetY
+
+grantHitpoint (gameId, x, y, targetX, targetY)
 
 juryVote (gameId, x, y, targetX, targetY)
 - checks that game exists, inputs valid, sender owns x,y

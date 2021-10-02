@@ -469,8 +469,8 @@ contract DangerMoonTicTacToe is Ownable {
         game.turnEndBlock = block.number.add(_blocksPerTurn);
         game.blocksPerTurn = _blocksPerTurn;
 
-        games[numGames] = game;
         numGames = numGames.add(1);
+        games[numGames] = game;
 
         emit GameCreated(numGames, msg.sender, game.isTeamOneEven);
 
@@ -499,7 +499,7 @@ contract DangerMoonTicTacToe is Ownable {
         Game storage game = games[gameId];
 
         // CHECKS
-        require(gameId < numGames, "No such game exists.");
+        require(0 < gameId && gameId <= numGames, "No such game exists.");
         require(numVotes <= minimumVotesPerTurn, "Too many votes.");
         require(game.winner == Winners.None, "The game already has a winner, it is over.");
         require(game.board[xCoord][yCoord] == Teams.None, "There is already a mark at the given coordinates.");
@@ -748,7 +748,7 @@ contract DangerMoonTicTacToe is Ownable {
       Teams playerTeam = getPlayerTeam(gameId, msg.sender);
 
       // CHECKS
-      require(gameId < numGames, "No such game exists.");
+      require(0 < gameId && gameId <= numGames, "No such game exists.");
       require(game.winner != Winners.None, "The game doesnt have a winner yet, it is not over.");
       require(
         game.winner == Winners.Draw || uint8(game.winner) == uint8(playerTeam),
