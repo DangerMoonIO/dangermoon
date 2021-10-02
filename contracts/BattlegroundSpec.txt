@@ -55,7 +55,6 @@ joinGame (gameId) returns (x, y)
 claimEnergy (gameId, x, y)
 - checks that game exists, inputs valid, sender owns x,y
 - checks that 1 day has passed since lastEnergyClaim
-- checks that piece on x,y is alive (has HP)
 - transfers ante/10 from sender into prizePool
 - increases sender's energy points by 1
 
@@ -87,7 +86,6 @@ grantEnergy (gameId, x, y, targetX, targetY)
 - checks that game exists, inputs valid, sender owns x,y
 - checks that piece is on targetX,targetY
 - checks that targetX,targetY is within attack range
-- checks that targetX,targetY is alive
 - subtracts 1 energy from your piece
 - grants 1 energy to the piece on targetX,targetY
 
@@ -98,8 +96,7 @@ juryVote (gameId, x, y, targetX, targetY)
 - checks that x,y is dead (HP == 0)
 - checks that x,y lastVote is more than a day old
 - checks that targetX,targetY is alive
-- calling this function after voteEndBlock grants energy to the vote winner and sets next voteEndBlock
-- votes to grant energy point to targetX,targetY
+- when target has 3 votes, votes reset to 0 and they get energy
 
 claimWinnings (gameId)
 - checks that game exists

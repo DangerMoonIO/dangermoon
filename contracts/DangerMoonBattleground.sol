@@ -349,28 +349,25 @@ contract DangerMoonBattleground is Ownable {
     // event GameOver(uint256 gameId, Winners winner);
 
     struct Piece {
-      address owner;   // only address that can manage this piece
-      uint256 lastEnergyClaim;
-      uint256 lastVote;
-      uint8 juryVotes; // 3 = piece gets an action point
-      uint8 energy;    // default 1, required to make moves
+      address owner;   // the only address that can manage this piece
+      uint256 lastClaim;
+      uint8 votes;     // 3 votes = piece gets 1 energy
+      uint8 energy;    // default 1, required to perform any action
       uint8 range;     // default 2, max 5
       uint8 hitpoints; // default 3, dead when == 0
     }
 
     struct Game {
       uint256 mustJoinByBlock;
-      uint256 voteEndBlock;
       uint256 prizePool;
-      uint256 numPlayers;
+      uint8 numDead;
+      uint8 numPlayers;
+      uint8 playerLimit;
       uint8 width;
       uint8 height;
-      uint8 entryFeePercent; // cost of entry as a percent of dangermoon's daily minimum entry
-      uint8 energyFeePercent; // cost of energy as a percent of dangermoon's daily minimum entry
-      uint8 playerLimit;
+      uint8 entryFeePercent;  // cost of entry as % of dangermoon's daily entry
+      uint8 energyFeePercent; // cost of energy as % of dangermoon's daily entry
       Piece[20][20] board;
-      uint8[20][20] votes;
-      mapping(address => Piece) dead;
     }
 
     // games stores all the games, including finished and still-running ones
@@ -389,7 +386,43 @@ contract DangerMoonBattleground is Ownable {
       dangermoon = IDangerMoon(_dangermoonAddress);
     }
 
-    function psuedoRandom() private view returns (uint256) {
+    modifier validateGameId(uint256 gameId) {
+        require(0 < gameId && gameId <= numGames, "No such game exists.");
+        _;
+    }
+
+    modifier validateCoordinates(uint256 gameId, uint8 x, uint8 y) {
+        require(x < games[gameId].width && y < games[gameId].height, "Coordinates not on board.")
+        _;
+    }
+
+    modifier validatePieceOwner(uint256 gameId, uint8 x, uint8 y) {
+        require(games[gameId].board[x][y].owner == msg.sender, "You do not own this piece.");
+        _;
+    }
+
+    modifier validatePieceAlive(uint256 gameId, uint8 x, uint8 y) {
+        require(games[gameId].board[x][y].hitpoints != 0, "Piece is dead");
+        _;
+    }
+
+    modifier validatePieceDead(uint256 gameId, uint8 x, uint8 y) {
+        require(games[gameId].board[x][y].hitpoints == 0, "Piece is alive");
+        _;
+    }
+
+    modifier validatePieceExists(uint256 gameId, uint8 x, uint8 y) {
+        require(games[gameId].board[x][y].lastClaim != 0, "Piece does not exist");
+        _;
+    }
+
+    modifier validateAndDeductEnergy(uint256 gameId, uint8 x, uint8 y) {
+        require(games[gameId].board[x][y].energy >= 1, "Not enough energy.");
+        games[gameId].board[x][y].energy -= 1;
+        _;
+    }
+
+    function random() private view returns (uint256) {
         return uint256(keccak256(abi.encodePacked(block.difficulty, block.timestamp, block.number)));
     }
 
@@ -410,16 +443,14 @@ contract DangerMoonBattleground is Ownable {
         }
     }
 
-    // TODO cant loop over entire board for votes...
-    function getGameVotes(uint256 gameId) public view returns (uint8[20][20] memory) {
-        return games[gameId].votes;
-    }
-
     function getGameBoard(uint256 gameId) public view returns (Piece[20][20] memory) {
         return games[gameId].board;
     }
 
+    // TODO ensure we always stay within width/height
+
     function createGame(uint8 playerLimit) public returns (uint256 gameId) {
+        // TODO think about board size & player limits
         // sqrt(20*3) =~ 7
         // sqrt(200*3) =~ 25
         require(playerLimit <= 20, "Player limit too high");
@@ -445,10 +476,12 @@ contract DangerMoonBattleground is Ownable {
         return numGames;
     }
 
-    function joinGame(uint256 gameId) public returns (uint8 x, uint8 y) {
+    function joinGame(uint256 gameId) public
+      validateGameId(gameId)
+      returns (uint8 x, uint8 y)
+    {
         // CHECKS
         Game storage game = games[gameId];
-        require(0 < gameId && gameId <= numGames, "No such game exists.");
         require(game.numPlayers <= game.playerLimit, "Game is full.");
         require(block.number < game.mustJoinByBlock, "Too late to join game.");
 
@@ -464,28 +497,30 @@ contract DangerMoonBattleground is Ownable {
         // Generate board piece
         Piece memory piece;
         piece.owner = msg.sender;
-        piece.lastEnergyClaim = block.number;
+        piece.lastClaim = block.number;
         piece.energy = 1;
         piece.range = 2;
         piece.hitpoints = 3;
 
-        // Add player to game
-        game.numPlayers = game.numPlayers.add(1);
-        // TODO loop while there is a piece at x,y
-        uint8 x = psuedoRandom().mod(game.width);
-        uint8 y = psuedoRandom().mod(game.height);
+        // Add piece to game by selecting random open square
+        uint8 x;
+        uint8 y;
+        do {
+          x = random().mod(game.width);
+          y = random().mod(game.height);
+        } while (game.board[x][y].lastClaim != 0);
         game.board[x][y] = piece;
+        game.numPlayers += 1;
     }
 
-    function claimEnergy(uint256 gameId, uint8 x, uint8 y) public {
+    function claimEnergy(uint256 gameId, uint8 x, uint8 y) public
+      validateGameId(gameId)
+      validateCoordinates(gameId, x, y)
+      validatePieceOwner(gameId, x, y)
+    {
         // CHECKS
-        Game storage game = games[gameId];
-        Game storage piece = game.board[x][y];
-        require(0 < gameId && gameId <= numGames, "No such game exists.");
-        require(x < game.width && y < game.height, "Invalid coordinates.")
-        require(piece.owner == msg.sender, "You do not own this piece.");
-        require(piece.lastEnergyClaim.add(blocksPerRound) < block.number, "Cant claim yet");
-        require(piece.hitpoints !== 0, "Cant claim energy when dead");
+        Game storage piece = games[gameId].board[x][y];
+        require(piece.lastClaim.add(blocksPerRound) < block.number, "Cant claim yet");
 
         // EFFECTS
         // Make payment from player to game contract
@@ -494,43 +529,141 @@ contract DangerMoonBattleground is Ownable {
         uint256 allowance = dangermoon.allowance(msg.sender, address(this));
         require(allowance >= energyFee, "Need DangerMoon transfer approval.");
         dangermoon.transferFrom(msg.sender, address(this), energyFee);
-        game.prizePool = game.prizePool.add(energyFee);
+        games[gameId].prizePool =  games[gameId].prizePool.add(energyFee);
 
+        // Grant energy and update claim time
         piece.energy += 1;
-        // TODO decide if this should just get set to block.number to ensure players stay engaged
-        piece.lastEnergyClaim = piece.lastEnergyClaim.add(blocksPerRound);
+        piece.lastClaim = block.number;
     }
 
-    function upgradeAttackRange(uint256 gameId, uint8 x, uint8 y) public {
-        // CHECKS
-        Game storage game = games[gameId];
-        Game storage piece = game.board[x][y];
-        require(0 < gameId && gameId <= numGames, "No such game exists.");
-        require(x < game.width && y < game.height, "Invalid coordinates.")
-        require(piece.owner == msg.sender, "You do not own this piece.");
-        require(piece.energy > 1, "Not enough energy.");
-
-        // EFFECTS
-        piece.energy -= 1;
-        piece.range += 1;
+    function upgradeAttackRange(uint256 gameId, uint8 x, uint8 y) public
+      validateGameId(gameId)
+      validateCoordinates(gameId, x, y)
+      validatePieceOwner(gameId, x, y)
+      validatePieceAlive(gameId, x, y)
+      validateAndDeductEnergy(gameId, x, y)
+    {
+        require(games[gameId].board[x][y].range < 5, "Cant upgrade range");
+        games[gameId].board[x][y].range += 1;
     }
 
-    function move(uint256 gameId, uint8 x, uint8 y, uint8 targetX, uint8 targetY) public {
+    function grantEnergy(uint256 gameId, uint8 x, uint8 y, uint8 targetX, uint8 targetY) public
+      validateGameId(gameId)
+      validateCoordinates(gameId, x, y)
+      validateCoordinates(gameId, targetX, targetY)
+      validatePieceOwner(gameId, x, y)
+      validatePieceAlive(gameId, x, y)
+      validatePieceExists(gameId, targetX, targetY)
+      validateAndDeductEnergy(gameId, x, y)
+    {
+        require(_withinRange(gameId, x, y, targetX, targetY), "Target not within range");
+        // Grant 1 energy to the piece on targetX,targetY
+        games[gameId].board[targetX][targetY].energy += 1;
+    }
+
+    function grantHitpoint(uint256 gameId, uint8 x, uint8 y, uint8 targetX, uint8 targetY) public
+      validateGameId(gameId)
+      validateCoordinates(gameId, x, y)
+      validateCoordinates(gameId, targetX, targetY)
+      validatePieceOwner(gameId, x, y)
+      validatePieceAlive(gameId, x, y)
+      validatePieceExists(gameId, targetX, targetY)
+      validateAndDeductEnergy(gameId, x, y)
+    {
+        require(games[gameId].board[x][y].hitpoints >= 1, "Not enough hp.");
+        require(_withinRange(gameId, x, y, targetX, targetY), "Target not within range");
+        // Keep track of numDead if target is being revived
+        if (games[gameId].board[targetX][targetY].hitpoints == 0) {
+            game[gameId].numDead -= 1;
+        }
+        // Reallocate 1 hitpoint from sender to the piece on targetX,targetY
+        games[gameId].board[x][y].hitpoints -= 1;
+        games[gameId].board[targetX][targetY].hitpoints += 1;
+    }
+
+    function move(uint256 gameId, uint8 x, uint8 y, uint8 targetX, uint8 targetY) public
+      validateGameId(gameId)
+      validateCoordinates(gameId, x, y)
+      validateCoordinates(gameId, targetX, targetY)
+      validatePieceOwner(gameId, x, y)
+      validatePieceAlive(gameId, x, y)
+      validateAndDeductEnergy(gameId, x, y)
+    {
         // CHECKS
-        Game storage game = games[gameId];
-        Game storage piece = game.board[x][y];
-        require(0 < gameId && gameId <= numGames, "No such game exists.");
-        require(x < game.width && y < game.height, "Invalid coordinates.")
-        require(piece.owner == msg.sender, "You do not own this piece.");
-        require(piece.energy > 1, "Not enough energy.");
-        require(targetX < game.width && targetY < game.height, "Invalid target.")
-        require(x-1 <= targetX && targetX <= x+1, "targetX not in range");
-        require(y-1 <= targetY && targetY <= y+1, "targetY not in range");
+        require(
+          (_distance(x, targetX) <= 1) && // x must be within range
+          (_distance(y, targetY) <= 1) && // y must be within range
+          (x != targetX || y != targetY)  // x or y position needs to change
+          "Invalid destination"
+        );
 
         // EFFECTS
-        piece.energy -= 1;
-        game.board[targetX][targetY] = piece;
-        delete game.board[x][y];
+        // Game storage piece = games[gameId].board[x][y];
+        games[gameId].board[targetX][targetY] = games[gameId].board[x][y];
+        delete games[gameId].board[x][y];
+    }
+
+    function attack(uint256 gameId, uint8 x, uint8 y, uint8 targetX, uint8 targetY) public
+      validateGameId(gameId)
+      validateCoordinates(gameId, x, y)
+      validateCoordinates(gameId, targetX, targetY)
+      validatePieceOwner(gameId, x, y)
+      validatePieceAlive(gameId, x, y)
+      validatePieceAlive(gameId, targetX, tagetY)
+      validateAndDeductEnergy(gameId, x, y)
+    {
+        require(_withinRange(gameId, x, y, targetX, targetY), "Target not within range");
+        // Deduct 1 hitpoint from piece on targetX,targetY
+        games[gameId].board[targetX][targetY].hitpoints -= 1;
+        // Keep track of numDead if target has been killed
+        if (games[gameId].board[targetX][targetY].hitpoints == 0) {
+            game[gameId].numDead += 1;
+        }
+    }
+
+    function juryVote(uint256 gameId, uint8 x, uint8 y, uint8 targetX, uint8 targetY) public
+      validateGameId(gameId)
+      validateCoordinates(gameId, x, y)
+      validateCoordinates(gameId, targetX, targetY)
+      validatePieceOwner(gameId, x, y)
+      validatePieceDead(gameId, x, y)
+      validatePieceAlive(gameId, targetX, targetY)
+      validateAndDeductEnergy(gameId, x, y)
+    {
+        // Keep track of target's votes
+        games[gameId].board[targetX][targetY].votes += 1;
+        // When target has 3+ votes, they lose 3 votes and get 1 energy
+        if (games[gameId].board[targetX][targetY].votes >= 3) {
+            games[gameId].board[targetX][targetY].votes -= 3;
+            games[gameId].board[targetX][targetY].energy += 1;
+        }
+    }
+
+    function claimWinnings(uint256 gameId, uint8 x, uint8 y) public
+      validateGameId(gameId)
+      validateCoordinates(gameId, x, y)
+      validatePieceOwner(gameId, x, y)
+      validatePieceAlive(gameId, x, y)
+    {
+        require(game[gameId].numDead == game[gameId].numPlayers - 1, "Game not over yet.");
+        uint256 takeFee = game[gameId].prizePool.mul(takeFeePercent).div(10**2);
+        dangermoon.transfer(owner(), takeFee);
+        dangermoon.transfer(msg.sender, game[gameId].prizePool.sub(takeFee));
+        game[gameId].prizePool = 0;
+    }
+
+    function _withinRange(uint256 gameId, uint8 x, uint8 y, uint8 targetX, uint8 targetY) private pure returns (boolean) {
+        uint8 range = games[gameId].board[x][y].range;
+        boolean inRangeX = _distance(x, targetX) <= range;
+        boolean inRangeY = _distance(y, targetY) <= range;
+        return inRangeX && inRangeY;
+    }
+
+    function _distance(uint8 a, uint8 b) private pure returns (uint8) {
+        if (a > b) {
+            return a - b;
+        }
+        return b - a;
     }
 
 }
