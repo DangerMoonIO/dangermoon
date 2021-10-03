@@ -278,153 +278,173 @@ describe('TicTacToe', function() {
     });
 
   	it("should let players createGame and joinGame", async () => {
-        await dangermoon.connect(p1).approve(bg.address, "100000000000000000");
-        await expect(bg.connect(p1).createGame(5)).to.emit(bg, "GameCreated");
+      await dangermoon.connect(p1).approve(bg.address, "100000000000000000");
+      await expect(bg.connect(p1).createGame(5)).to.emit(bg, "GameCreated");
 
-        await dangermoon.connect(p1).approve(bg.address, "2000000000000000000");
-        await expect(bg.connect(p1).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p1.address, 1, 2);
-        await expect(bg.connect(p1).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p1.address, 0, 0);
+      await dangermoon.connect(p1).approve(bg.address, "2000000000000000000");
+      await expect(bg.connect(p1).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p1.address, 1, 2);
+      await expect(bg.connect(p1).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p1.address, 0, 0);
 
-        await dangermoon.connect(p2).approve(bg.address, "100000000000000000");
-        await expect(bg.connect(p2).createGame(20)).to.emit(bg, "GameCreated");
+      await dangermoon.connect(p2).approve(bg.address, "100000000000000000");
+      await expect(bg.connect(p2).createGame(20)).to.emit(bg, "GameCreated");
 
-        const bgDmBalance = (await dangermoon.balanceOf(bg.address)).toString();
-        expect(bgDmBalance).to.equal("400000000000000000");
+      const bgDmBalance = (await dangermoon.balanceOf(bg.address)).toString();
+      expect(bgDmBalance).to.equal("400000000000000000");
 
-        // await printGameBoard(0);
+      // await printGameBoard(0);
     });
 
     it("should let players claimEnergy, attack, and juryVote", async () => {
-        await dangermoon.connect(p1).approve(bg.address, "100000000000000000");
-        await expect(bg.connect(p1).createGame(5)).to.emit(bg, "GameCreated");
+      await dangermoon.connect(p1).approve(bg.address, "100000000000000000");
+      await expect(bg.connect(p1).createGame(5)).to.emit(bg, "GameCreated");
 
-        await dangermoon.connect(p1).approve(bg.address, "2000000000000000000");
-        await expect(bg.connect(p1).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p1.address, 1, 1);
-        await expect(bg.connect(p1).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p1.address, 0, 1);
-        await dangermoon.connect(p2).approve(bg.address, "1000000000000000000");
-        await expect(bg.connect(p2).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p2.address, 1, 0);
-        await dangermoon.connect(p3).approve(bg.address, "1000000000000000000");
-        await expect(bg.connect(p3).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p3.address, 2, 2);
-        await dangermoon.connect(p4).approve(bg.address, "1000000000000000000");
-        await expect(bg.connect(p4).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p4.address, 2, 0);
+      await dangermoon.connect(p1).approve(bg.address, "2000000000000000000");
+      await expect(bg.connect(p1).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p1.address, 1, 1);
+      await expect(bg.connect(p1).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p1.address, 0, 1);
+      await dangermoon.connect(p2).approve(bg.address, "1000000000000000000");
+      await expect(bg.connect(p2).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p2.address, 1, 0);
+      await dangermoon.connect(p3).approve(bg.address, "1000000000000000000");
+      await expect(bg.connect(p3).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p3.address, 2, 2);
+      await dangermoon.connect(p4).approve(bg.address, "1000000000000000000");
+      await expect(bg.connect(p4).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p4.address, 2, 0);
 
-        // await printGameBoard(0);
+      // await printGameBoard(0);
 
-        await dangermoon.connect(p1).approve(bg.address, "100000000000000000");
-        await dangermoon.connect(p1).approve(bg.address, "100000000000000000");
-        await dangermoon.connect(p1).approve(bg.address, "100000000000000000");
-        await bg.connect(p1).claimEnergy(0, 1, 1);
+      await dangermoon.connect(p1).approve(bg.address, "100000000000000000");
+      await dangermoon.connect(p1).approve(bg.address, "100000000000000000");
+      await dangermoon.connect(p1).approve(bg.address, "100000000000000000");
+      await bg.connect(p1).claimEnergy(0, 1, 1);
 
-        // await printGameBoard(0);
+      // await printGameBoard(0);
 
-        await bg.connect(p1).attack(0, 1, 1, 1, 0);
-        await bg.connect(p1).attack(0, 1, 1, 1, 0);
-        await bg.connect(p1).attack(0, 0, 1, 1, 0);
-        await expect(bg.connect(p4).attack(0, 2, 0, 1, 0))
-          .to.be.revertedWith("Target is dead");
+      await bg.connect(p1).attack(0, 1, 1, 1, 0);
+      await bg.connect(p1).attack(0, 1, 1, 1, 0);
+      await bg.connect(p1).attack(0, 0, 1, 1, 0);
+      await expect(bg.connect(p4).attack(0, 2, 0, 1, 0))
+        .to.be.revertedWith("Target is dead");
 
-        // await printGameBoard(0);
-        await bg.connect(p2).juryVote(0, 1, 0, 2, 0);
+      // await printGameBoard(0);
+      await bg.connect(p2).juryVote(0, 1, 0, 2, 0);
 
     });
 
     it("should prevent joining after round ends", async () => {
-        // create a game
-        await dangermoon.connect(p1).approve(bg.address, "100000000000000000");
-        await expect(bg.connect(p1).createGame(5)).to.emit(bg, "GameCreated");
+      // create a game
+      await dangermoon.connect(p1).approve(bg.address, "100000000000000000");
+      await expect(bg.connect(p1).createGame(5)).to.emit(bg, "GameCreated");
 
-        // mine 10 blocks to pass the join time
-        for (let x=0; x<10; x++) {
-          await dangermoon.connect(p1).approve(bg.address, "1000000000000000000");
-        }
+      // mine 10 blocks to pass the join time
+      for (let x=0; x<10; x++) {
+        await dangermoon.connect(p1).approve(bg.address, "1000000000000000000");
+      }
 
-        // too late to join
-        await expect(bg.connect(p2).joinGame(0))
-          .to.be.revertedWith("Too late to join game.");
+      // too late to join
+      await expect(bg.connect(p2).joinGame(0))
+        .to.be.revertedWith("Too late to join game.");
     });
 
     it("should let players upgradeAttackRange", async () => {
-        await dangermoon.connect(p1).approve(bg.address, "100000000000000000");
-        await expect(bg.connect(p1).createGame(5)).to.emit(bg, "GameCreated");
+      await dangermoon.connect(p1).approve(bg.address, "100000000000000000");
+      await expect(bg.connect(p1).createGame(5)).to.emit(bg, "GameCreated");
 
-        await dangermoon.connect(p1).approve(bg.address, "1000000000000000000");
-        await expect(bg.connect(p1).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p1.address, 2, 2);
+      await dangermoon.connect(p1).approve(bg.address, "1000000000000000000");
+      await expect(bg.connect(p1).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p1.address, 2, 2);
 
-        // await printGameBoard(0);
-        await expect(bg.connect(p1).upgradeAttackRange(0, 2, 2))
-          .to.emit(bg, "UpgradedAttackRange").withArgs(0, p1.address, 3);
-        // await printGameBoard(0);
+      // await printGameBoard(0);
+      await expect(bg.connect(p1).upgradeAttackRange(0, 2, 2))
+        .to.emit(bg, "UpgradedAttackRange").withArgs(0, p1.address, 3);
+      // await printGameBoard(0);
     });
 
     it("should let players grantEnergy", async () => {
-        await dangermoon.connect(p1).approve(bg.address, "100000000000000000");
-        await expect(bg.connect(p1).createGame(5)).to.emit(bg, "GameCreated");
+      await dangermoon.connect(p1).approve(bg.address, "100000000000000000");
+      await expect(bg.connect(p1).createGame(5)).to.emit(bg, "GameCreated");
 
-        await dangermoon.connect(p1).approve(bg.address, "1000000000000000000");
-        await expect(bg.connect(p1).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p1.address, 1, 0);
+      await dangermoon.connect(p1).approve(bg.address, "1000000000000000000");
+      await expect(bg.connect(p1).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p1.address, 1, 0);
 
-        await dangermoon.connect(p2).approve(bg.address, "1000000000000000000");
-        await expect(bg.connect(p2).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p2.address, 1, 2);
+      await dangermoon.connect(p2).approve(bg.address, "1000000000000000000");
+      await expect(bg.connect(p2).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p2.address, 1, 2);
 
-        // await printGameBoard(0);
-        await expect(bg.connect(p1).grantEnergy(0, 1, 0, 1, 2))
-          .to.emit(bg, "EnergyGranted").withArgs(0, p1.address, 1, 0, 1, 2);
-        // await printGameBoard(0);
+      // await printGameBoard(0);
+      await expect(bg.connect(p1).grantEnergy(0, 1, 0, 1, 2))
+        .to.emit(bg, "EnergyGranted").withArgs(0, p1.address, 1, 0, 1, 2);
+      // await printGameBoard(0);
     });
 
     it("should let players move", async () => {
-        await dangermoon.connect(p1).approve(bg.address, "100000000000000000");
-        await expect(bg.connect(p1).createGame(5)).to.emit(bg, "GameCreated");
+      await dangermoon.connect(p1).approve(bg.address, "100000000000000000");
+      await expect(bg.connect(p1).createGame(5)).to.emit(bg, "GameCreated");
 
-        await dangermoon.connect(p1).approve(bg.address, "1000000000000000000");
-        await expect(bg.connect(p1).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p1.address, 0, 0);
+      await dangermoon.connect(p1).approve(bg.address, "1000000000000000000");
+      await expect(bg.connect(p1).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p1.address, 0, 0);
 
-        // await printGameBoard(0);
-        await expect(bg.connect(p1).move(0, 0, 0, 1, 1))
-          .to.emit(bg, "PlayerMoved").withArgs(0, p1.address, 0, 0, 1, 1);
-        // await printGameBoard(0);
+      // await printGameBoard(0);
+      await expect(bg.connect(p1).move(0, 0, 0, 1, 1))
+        .to.emit(bg, "PlayerMoved").withArgs(0, p1.address, 0, 0, 1, 1);
+      // await printGameBoard(0);
     });
 
     it("should not let players attack out of range", async () => {
-        await dangermoon.connect(p1).approve(bg.address, "100000000000000000");
-        await expect(bg.connect(p1).createGame(20)).to.emit(bg, "GameCreated");
+      await dangermoon.connect(p1).approve(bg.address, "100000000000000000");
+      await expect(bg.connect(p1).createGame(20)).to.emit(bg, "GameCreated");
 
-        await dangermoon.connect(p1).approve(bg.address, "1000000000000000000");
-        // await bg.connect(p1).joinGame(0);
-        await expect(bg.connect(p1).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p1.address, 0, 4);
-        await dangermoon.connect(p2).approve(bg.address, "1000000000000000000");
-        // await bg.connect(p2).joinGame(0);
-        await expect(bg.connect(p2).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p2.address, 4, 2);
-        await dangermoon.connect(p3).approve(bg.address, "1000000000000000000");
-        // await bg.connect(p3).joinGame(0);
-        await expect(bg.connect(p3).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p3.address, 0, 1);
+      await dangermoon.connect(p1).approve(bg.address, "1000000000000000000");
+      // await bg.connect(p1).joinGame(0);
+      await expect(bg.connect(p1).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p1.address, 0, 4);
+      await dangermoon.connect(p2).approve(bg.address, "1000000000000000000");
+      // await bg.connect(p2).joinGame(0);
+      await expect(bg.connect(p2).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p2.address, 4, 2);
+      await dangermoon.connect(p3).approve(bg.address, "1000000000000000000");
+      // await bg.connect(p3).joinGame(0);
+      await expect(bg.connect(p3).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p3.address, 0, 1);
 
-        // await printGameBoard(0);
-        await expect(bg.connect(p1).attack(0, 0, 4, 0, 1))
-          .to.be.revertedWith("Target not within range");
+      // await printGameBoard(0);
+      await expect(bg.connect(p1).attack(0, 0, 4, 0, 1))
+        .to.be.revertedWith("Target not within range");
     });
 
-    xit("should let players claimWinnings", async () => {
+    it("should let players claimWinnings", async () => {
+      await dangermoon.connect(p1).approve(bg.address, "100000000000000000");
+      await expect(bg.connect(p1).createGame(5)).to.emit(bg, "GameCreated");
 
+      await dangermoon.connect(p1).approve(bg.address, "2000000000000000000");
+      await bg.connect(p1).joinGame(0);
+      await bg.connect(p1).joinGame(0);
+      // await expect(bg.connect(p1).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p1.address, 0, 4);
+
+      await dangermoon.connect(p2).approve(bg.address, "1000000000000000000");
+      await bg.connect(p2).joinGame(0);
+      // await expect(bg.connect(p2).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p2.address, 4, 2);
+
+      await dangermoon.connect(p3).approve(bg.address, "1000000000000000000");
+      await bg.connect(p3).joinGame(0);
+      // await expect(bg.connect(p3).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p3.address, 0, 1);
+
+      await dangermoon.connect(p4).approve(bg.address, "1000000000000000000");
+      await bg.connect(p4).joinGame(0);
+      // await expect(bg.connect(p4).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p4.address, 0, 1);
+
+      await printGameBoard(0);
     });
 
     xit("should let players grantHitpoint", async () => {
-        await dangermoon.connect(p1).approve(bg.address, "100000000000000000");
-        await expect(bg.connect(p1).createGame(5)).to.emit(bg, "GameCreated");
+      await dangermoon.connect(p1).approve(bg.address, "100000000000000000");
+      await expect(bg.connect(p1).createGame(5)).to.emit(bg, "GameCreated");
 
-        await dangermoon.connect(p1).approve(bg.address, "1000000000000000000");
-        await bg.connect(p1).joinGame(0);
-        // await expect(bg.connect(p1).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p1.address, 0, 1);
+      await dangermoon.connect(p1).approve(bg.address, "1000000000000000000");
+      await bg.connect(p1).joinGame(0);
+      // await expect(bg.connect(p1).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p1.address, 0, 1);
 
-        await dangermoon.connect(p2).approve(bg.address, "1000000000000000000");
-        await bg.connect(p2).joinGame(0);
-        // await expect(bg.connect(p2).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p2.address, 1, 2);
+      await dangermoon.connect(p2).approve(bg.address, "1000000000000000000");
+      await bg.connect(p2).joinGame(0);
+      // await expect(bg.connect(p2).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p2.address, 1, 2);
 
-        // await printGameBoard(0);
-        // TODO shouldnt be able to grant >3 HP
-        await expect(bg.connect(p1).grantHitpoint(0, 0, 1, 1, 2))
-          .to.emit(bg, "HitpointGranted").withArgs(0, p1.address, 0, 1,  1, 2);
-        // await printGameBoard(0);
+      // await printGameBoard(0);
+      // TODO shouldnt be able to grant >3 HP
+      await expect(bg.connect(p1).grantHitpoint(0, 0, 1, 1, 2))
+        .to.emit(bg, "HitpointGranted").withArgs(0, p1.address, 0, 1,  1, 2);
+      // await printGameBoard(0);
     });
 
 });
