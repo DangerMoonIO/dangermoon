@@ -361,11 +361,9 @@ contract DangerMoonBattleground is Ownable {
 
     // games stores all the games, including finished and still-running ones
     // It is possible to iterate over all games by going from `0` to `games.length`.
-    Game[] games;
+    Game[] public games;
     // dangermoon address (for transfers, reading the current $10 value, etc)
     IDangerMoon public dangermoon;
-    // numGames stores the total number of games.
-    uint256 public numGames;
     // determines number of blocks per in-game turn
     uint16 public blocksPerRound = 1200 * 24; // 1200 blocks is about 1 hour on BSC
     // dangermoon team's cut of prize pool
@@ -375,8 +373,10 @@ contract DangerMoonBattleground is Ownable {
       dangermoon = IDangerMoon(_dangermoonAddress);
     }
 
-    function random() private view returns (uint256) {
-        return uint256(keccak256(abi.encodePacked(block.difficulty, block.timestamp, block.number)));
+    function random(uint8 seed) private view returns (uint256) {
+        return uint256(keccak256(abi.encodePacked(seed, block.difficulty, block.timestamp, block.number)));
+        // TODO revert after testing
+        // return uint256(keccak256(abi.encodePacked(block.number)));
     }
 
     function sqrt(uint8 y) internal pure returns (uint8 z) {
@@ -409,6 +409,10 @@ contract DangerMoonBattleground is Ownable {
         }
     }
 
+    function getNumGames() public view returns (uint256) {
+        return games.length;
+    }
+
     function getGameBoard(uint256 gameId) public view returns (Piece[20][20] memory) {
         return games[gameId].board;
     }
@@ -419,6 +423,7 @@ contract DangerMoonBattleground is Ownable {
         // TODO think about board size & player limits
         // sqrt(20*3) =~ 7
         // sqrt(200*3) =~ 25
+        require(playerLimit >= 5, "Player limit too high");
         require(playerLimit <= 20, "Player limit too high");
 
         games.push();
@@ -427,15 +432,18 @@ contract DangerMoonBattleground is Ownable {
         games[newIndex].energyFeePercent = 10;
         games[newIndex].mustJoinByBlock = block.number.add(blocksPerRound);
         games[newIndex].playerLimit = playerLimit;
-        games[newIndex].width = sqrt(playerLimit * 3);
-        games[newIndex].height = sqrt(playerLimit * 2);
+        games[newIndex].width = sqrt(playerLimit * 4);
+        games[newIndex].height = sqrt(playerLimit * 3);
 
-        console.log("width");
-        console.log(games[newIndex].width);
-        console.log("height");
-        console.log(games[newIndex].height);
+        // Make payment from player to game contract
+        uint256 tenUsdWorth = dangermoon._minimumTokensForReflection();
+        uint256 entryFee = tenUsdWorth.mul(games[newIndex].entryFeePercent).div(10**2);
+        uint256 allowance = dangermoon.allowance(msg.sender, address(this));
+        require(allowance >= entryFee, "Need DangerMoon transfer approval.");
+        dangermoon.transferFrom(msg.sender, address(this), entryFee);
+        games[newIndex].prizePool = games[newIndex].prizePool.add(entryFee);
 
-        GameCreated(numGames, msg.sender, playerLimit, games[newIndex].width, games[newIndex].height);
+        GameCreated(newIndex, msg.sender, playerLimit, games[newIndex].width, games[newIndex].height);
 
         return newIndex;
     }
@@ -444,7 +452,7 @@ contract DangerMoonBattleground is Ownable {
 
         // CHECKS
         Game storage game = games[gameId];
-        require(0 < gameId && gameId <= numGames, "No such game exists.");
+        require(gameId < games.length, "No such game exists.");
         require(game.numPlayers <= game.playerLimit, "Game is full.");
         require(block.number < game.mustJoinByBlock, "Too late to join game.");
 
@@ -466,10 +474,14 @@ contract DangerMoonBattleground is Ownable {
         piece.hitpoints = 3;
 
         // Add piece to game by selecting random open square
-        do {
-          x = uint8(random().mod(game.width));
-          y = uint8(random().mod(game.height));
-        } while (game.board[x][y].lastClaim != 0);
+        // do {
+          x = uint8(random(0).mod(game.width));
+          y = uint8(random(1).mod(game.height));
+          console.log("x");
+          console.log(x);
+          console.log("y");
+          console.log(y);
+        // } while (game.board[x][y].lastClaim != 0);
         game.board[x][y] = piece;
         game.numPlayers += 1;
     }
@@ -479,7 +491,7 @@ contract DangerMoonBattleground is Ownable {
         // CHECKS
         Game storage game = games[gameId];
         Piece storage piece = game.board[x][y];
-        require(0 < gameId && gameId <= numGames, "No such game exists.");
+        require(gameId < games.length, "No such game exists.");
         require(x < game.width && y < game.height, "Coordinates not on board.");
         require(piece.owner == msg.sender, "You do not own this piece.");
         require(piece.lastClaim.add(blocksPerRound) < block.number, "Cant claim yet");
@@ -503,15 +515,17 @@ contract DangerMoonBattleground is Ownable {
         // CHECKS
         Game storage game = games[gameId];
         Piece storage piece = game.board[x][y];
-        require(0 < gameId && gameId <= numGames, "No such game exists.");
+        require(gameId < games.length, "No such game exists.");
         require(x < game.width && y < game.height, "Coordinates not on board.");
         require(piece.owner == msg.sender, "You do not own this piece.");
         require(piece.energy >= 1, "Not enough energy.");
         require(piece.range < 5, "Cant upgrade range");
 
         // EFFECTS
-        piece.range += 1;
+        // Spend energy
         piece.energy -= 1;
+        // Buff range
+        piece.range += 1;
     }
 
     function grantEnergy(uint256 gameId, uint8 x, uint8 y, uint8 targetX, uint8 targetY) public {
@@ -520,18 +534,18 @@ contract DangerMoonBattleground is Ownable {
         Game storage game = games[gameId];
         Piece storage piece = game.board[x][y];
         Piece storage target = game.board[targetX][targetY];
-        require(0 < gameId && gameId <= numGames, "No such game exists.");
+        require(gameId < games.length, "No such game exists.");
         require(x < game.width && y < game.height, "Coordinates not on board.");
         require(piece.owner == msg.sender, "You do not own this piece.");
         require(piece.energy >= 1, "Not enough energy.");
         require(piece.hitpoints != 0, "Piece is dead");
         require(target.lastClaim != 0, "Target does not exist");
-        require(_withinRange(gameId, x, y, targetX, targetY), "Target not within range");
+        require(_withinRange(piece.range, x, y, targetX, targetY), "Target not within range");
 
         // EFFECTS
         // Reallocate 1 energy to the piece on targetX,targetY
-        target.energy += 1;
         piece.energy -= 1;
+        target.energy += 1;
     }
 
     function grantHitpoint(uint256 gameId, uint8 x, uint8 y, uint8 targetX, uint8 targetY) public {
@@ -540,7 +554,7 @@ contract DangerMoonBattleground is Ownable {
         Game storage game = games[gameId];
         Piece storage piece = game.board[x][y];
         Piece storage target = game.board[targetX][targetY];
-        require(0 < gameId && gameId <= numGames, "No such game exists.");
+        require(gameId < games.length, "No such game exists.");
         require(x < game.width && y < game.height, "Coordinates not on board.");
         require(targetX < game.width && targetY < game.height, "Coordinates not on board.");
         require(piece.owner == msg.sender, "You do not own this piece.");
@@ -548,12 +562,12 @@ contract DangerMoonBattleground is Ownable {
         require(piece.hitpoints != 0, "You are dead");
         require(target.lastClaim != 0, "Target does not exist");
         require(piece.hitpoints >= 1, "Not enough hp.");
-        require(_withinRange(gameId, x, y, targetX, targetY), "Target not within range");
+        require(_withinRange(piece.range, x, y, targetX, targetY), "Target not within range");
 
         // EFFECTS
         // Keep track of numDead if target is being revived
         if (target.hitpoints == 0) {
-            games[gameId].numDead -= 1;
+            game.numDead -= 1;
         }
         // Spend energy
         piece.energy -= 1;
@@ -568,12 +582,13 @@ contract DangerMoonBattleground is Ownable {
         Game storage game = games[gameId];
         Piece storage piece = game.board[x][y];
         Piece storage target = game.board[targetX][targetY];
-        require(0 < gameId && gameId <= numGames, "No such game exists.");
+        require(gameId < games.length, "No such game exists.");
         require(x < game.width && y < game.height, "Coordinates not on board.");
         require(targetX < game.width && targetY < game.height, "Coordinates not on board.");
         require(piece.owner == msg.sender, "You do not own this piece.");
         require(piece.hitpoints != 0, "You are dead");
         require(piece.energy >= 1, "Not enough energy.");
+        require(target.lastClaim == 0, "Target square not empty.");
         require(
           (_distance(x, targetX) <= 1) && // x must be within range
           (_distance(y, targetY) <= 1) && // y must be within range
@@ -585,7 +600,7 @@ contract DangerMoonBattleground is Ownable {
         // Spend energy
         piece.energy -= 1;
         // Game storage piece = games[gameId].board[x][y];
-        target = games[gameId].board[x][y]; // TODO check
+        target = piece; // TODO check
         delete games[gameId].board[x][y];
     }
 
@@ -595,14 +610,14 @@ contract DangerMoonBattleground is Ownable {
         Game storage game = games[gameId];
         Piece storage piece = game.board[x][y];
         Piece storage target = game.board[targetX][targetY];
-        require(0 < gameId && gameId <= numGames, "No such game exists.");
+        require(gameId < games.length, "No such game exists.");
         require(x < game.width && y < game.height, "Coordinates not on board.");
         require(targetX < game.width && targetY < game.height, "Coordinates not on board.");
         require(piece.owner == msg.sender, "You do not own this piece.");
         require(piece.hitpoints != 0, "You are dead");
         require(target.hitpoints != 0, "Target is dead");
         require(piece.energy >= 1, "Not enough energy.");
-        require(_withinRange(gameId, x, y, targetX, targetY), "Target not within range");
+        require(_withinRange(piece.range, x, y, targetX, targetY), "Target not within range");
 
         // EFFECTS
         // Spend energy
@@ -621,12 +636,12 @@ contract DangerMoonBattleground is Ownable {
         Game storage game = games[gameId];
         Piece storage piece = game.board[x][y];
         Piece storage target = game.board[targetX][targetY];
-        require(0 < gameId && gameId <= numGames, "No such game exists.");
+        require(gameId < games.length, "No such game exists.");
         require(x < game.width && y < game.height, "Coordinates not on board.");
         require(targetX < game.width && targetY < game.height, "Coordinates not on board.");
         require(piece.owner == msg.sender, "You do not own this piece.");
         require(piece.hitpoints == 0, "You are alive");
-        require(game.board[targetX][targetY].hitpoints != 0, "Piece is dead");
+        require(target.hitpoints != 0, "Target is dead");
         require(piece.energy >= 1, "Not enough energy.");
 
         // EFFECTS
@@ -646,7 +661,7 @@ contract DangerMoonBattleground is Ownable {
         // CHECKS
         Game storage game = games[gameId];
         Piece storage piece = game.board[x][y];
-        require(0 < gameId && gameId <= numGames, "No such game exists.");
+        require(gameId < games.length, "No such game exists.");
         require(x < game.width && y < game.height, "Coordinates not on board.");
         require(piece.owner == msg.sender, "You do not own this piece.");
         require(piece.hitpoints != 0, "You are dead");
@@ -659,8 +674,7 @@ contract DangerMoonBattleground is Ownable {
         game.prizePool = 0;
     }
 
-    function _withinRange(uint256 gameId, uint8 x, uint8 y, uint8 targetX, uint8 targetY) private view returns (bool) {
-        uint8 range = games[gameId].board[x][y].range;
+    function _withinRange(uint8 range, uint8 x, uint8 y, uint8 targetX, uint8 targetY) private pure returns (bool) {
         bool inRangeX = _distance(x, targetX) <= range;
         bool inRangeY = _distance(y, targetY) <= range;
         return (inRangeX && inRangeY);
