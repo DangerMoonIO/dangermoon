@@ -330,8 +330,8 @@ contract DangerMoonBattleground is Ownable {
     // TODO add events
     // GameCreated signals that `creator` created a new game with `gameId`.
     event GameCreated(uint256 gameId, address creator, uint8 playerLimit, uint8 width, uint8 height);
-    // // PlayerJoinedGame signals that `player` joined the game with the id `gameId` at x, y
-    // event PlayerJoinedGame(uint256 gameId, address player, uint8 xCoord, uint8 yCoord);
+    // GameJoined signals that `player` joined the game with the id `gameId` at x, y
+    event GameJoined(uint256 gameId, address player, uint8 xCoord, uint8 yCoord);
     // // PlayerMadeMove signals that `player` moved to `xCoord`, `yCoord`.
     // event PlayerMadeMove(uint256 gameId, address player, uint8 xCoord, uint8 yCoord);
     // // GameOver signals that the game with the id `gameId` is over.
@@ -365,18 +365,19 @@ contract DangerMoonBattleground is Ownable {
     // dangermoon address (for transfers, reading the current $10 value, etc)
     IDangerMoon public dangermoon;
     // determines number of blocks per in-game turn
-    uint16 public blocksPerRound = 1200 * 24; // 1200 blocks is about 1 hour on BSC
+    uint16 public blocksPerRound;
+    // improves randomness in testing
+    uint256 private randomSeed = 0;
     // dangermoon team's cut of prize pool
     uint8 public takeFeePercent = 10;
 
-    constructor(address _dangermoonAddress) public {
+    constructor(address _dangermoonAddress, uint16 _blocksPerRound) public {
       dangermoon = IDangerMoon(_dangermoonAddress);
+      blocksPerRound = _blocksPerRound; // 1200 blocks is about 1 hour on BSC
     }
 
-    function random(uint8 seed) private view returns (uint256) {
+    function random(uint256 seed) private view returns (uint256) {
         return uint256(keccak256(abi.encodePacked(seed, block.difficulty, block.timestamp, block.number)));
-        // TODO revert after testing
-        // return uint256(keccak256(abi.encodePacked(block.number)));
     }
 
     function sqrt(uint8 y) internal pure returns (uint8 z) {
@@ -474,16 +475,19 @@ contract DangerMoonBattleground is Ownable {
         piece.hitpoints = 3;
 
         // Add piece to game by selecting random open square
-        // do {
-          x = uint8(random(0).mod(game.width));
-          y = uint8(random(1).mod(game.height));
-          console.log("x");
-          console.log(x);
-          console.log("y");
-          console.log(y);
-        // } while (game.board[x][y].lastClaim != 0);
+        do {
+          x = uint8(random(randomSeed++).mod(game.width));
+          y = uint8(random(randomSeed++).mod(game.height));
+        } while (game.board[x][y].lastClaim != 0);
         game.board[x][y] = piece;
         game.numPlayers += 1;
+
+        emit GameJoined(gameId, msg.sender, x, y);
+
+        console.log("x");
+        console.log(x);
+        console.log("y");
+        console.log(y);
     }
 
     function claimEnergy(uint256 gameId, uint8 x, uint8 y) public {

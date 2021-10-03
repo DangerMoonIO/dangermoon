@@ -174,6 +174,7 @@ async function printGameBoard(gameId) {
   console.log("Board #", gameId);
   console.log("width/height: ", width, "/", height);
   console.log("Players:", numPlayers, "out of", playerLimit);
+  console.log("[votes/energy/range/hp]");
   for (let y=0; y<height; y++) {
     for (let x=0; x<width; x++) {
       const {
@@ -270,260 +271,101 @@ describe('TicTacToe', function() {
 
       // Get and deploy battleground
       const DangerMoonBattleground = await ethers.getContractFactory("DangerMoonBattleground");
-      bg = await DangerMoonBattleground.deploy(dangermoon.address);
+      bg = await DangerMoonBattleground.deploy(dangermoon.address, 10);
 
       // ensures playing does not ruin entries
       await dangermoon.excludeFromFee(bg.address);
     });
 
-  	it("should create games", async () => {
+  	it("should let players createGame and joinGame", async () => {
         await dangermoon.connect(p1).approve(bg.address, "100000000000000000");
         await expect(bg.connect(p1).createGame(5)).to.emit(bg, "GameCreated");
+
+        await dangermoon.connect(p1).approve(bg.address, "2000000000000000000");
+        await expect(bg.connect(p1).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p1.address, 1, 2);
+        await expect(bg.connect(p1).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p1.address, 0, 0);
 
         await dangermoon.connect(p2).approve(bg.address, "100000000000000000");
         await expect(bg.connect(p2).createGame(20)).to.emit(bg, "GameCreated");
 
         const bgDmBalance = (await dangermoon.balanceOf(bg.address)).toString();
-        expect(bgDmBalance).to.equal("200000000000000000");
+        expect(bgDmBalance).to.equal("400000000000000000");
 
         // await printGameBoard(0);
     });
 
-    it("should let players join", async () => {
+    it("should let players claimEnergy and attack", async () => {
         await dangermoon.connect(p1).approve(bg.address, "100000000000000000");
         await expect(bg.connect(p1).createGame(5)).to.emit(bg, "GameCreated");
 
-        // approve interactions
-        await dangermoon.connect(p1).approve(bg.address, "1000000000000000000");
-        await bg.connect(p1).joinGame(0);
-
+        await dangermoon.connect(p1).approve(bg.address, "2000000000000000000");
+        await expect(bg.connect(p1).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p1.address, 1, 1);
+        await expect(bg.connect(p1).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p1.address, 0, 1);
         await dangermoon.connect(p2).approve(bg.address, "1000000000000000000");
-        await bg.connect(p2).joinGame(0);
-
+        await expect(bg.connect(p2).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p2.address, 1, 0);
         await dangermoon.connect(p3).approve(bg.address, "1000000000000000000");
-        await bg.connect(p3).joinGame(0);
+        await expect(bg.connect(p3).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p3.address, 2, 2);
+        await dangermoon.connect(p4).approve(bg.address, "1000000000000000000");
+        await expect(bg.connect(p4).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p4.address, 2, 0);
 
-        // await dangermoon.connect(p4).approve(bg.address, "1000000000000000000");
-        // await bg.connect(p4).joinGame(0);
+        // await printGameBoard(0);
 
-        await printGameBoard(0);
+        await dangermoon.connect(p1).approve(bg.address, "100000000000000000");
+        await dangermoon.connect(p1).approve(bg.address, "100000000000000000");
+        await dangermoon.connect(p1).approve(bg.address, "100000000000000000");
+        await bg.connect(p1).claimEnergy(0, 1, 1);
+
+        // await printGameBoard(0);
+
+        await bg.connect(p1).attack(0, 1, 1, 1, 0);
+        await bg.connect(p1).attack(0, 1, 1, 1, 0);
+        await bg.connect(p1).attack(0, 0, 1, 1, 0);
+        await expect(bg.connect(p4).attack(0, 2, 0, 1, 0))
+          .to.be.revertedWith("Target is dead");
+
+        // await printGameBoard(0);
     });
 
-    xit("should prevent joining after four turns", async () => {
+    it("should prevent joining after round ends", async () => {
         // create a game
-        await expect(bg.connect(p1).newGame(1200)).to.emit(bg, "GameCreated");
-        // approve interactions
-        await dangermoon.connect(p1).approve(bg.address, "1000000000000000000");
-        await dangermoon.connect(p2).approve(bg.address, "1000000000000000000");
-        await dangermoon.connect(p4).approve(bg.address, "1000000000000000000");
+        await dangermoon.connect(p1).approve(bg.address, "100000000000000000");
+        await expect(bg.connect(p1).createGame(5)).to.emit(bg, "GameCreated");
 
-        // round 1
-        await bg.connect(p1).voteMove(0, 25, 0, 0);
-        // round 2
-        await bg.connect(p4).voteMove(0, 25, 0, 1);
-        // round 3
-        await bg.connect(p1).voteMove(0, 25, 0, 2);
-        // round 4
-        await bg.connect(p4).voteMove(0, 25, 1, 0);
+        // mine 10 blocks to pass the join time
+        for (let x=0; x<10; x++) {
+          await dangermoon.connect(p1).approve(bg.address, "1000000000000000000");
+        }
+
         // too late to join
-        await expect(bg.connect(p2).voteMove(0, 25, 1, 2))
-          .to.be.revertedWith("You must join a game before the fourth round.");
+        await expect(bg.connect(p2).joinGame(0))
+          .to.be.revertedWith("Too late to join game.");
     });
 
-    xit("should let player that creates game move first", async () => {
-        // create a game
-        await expect(bg.connect(p4).newGame(1200)).to.emit(bg, "GameCreated");
-
-        // ensure the player that created game can make first move
-        await dangermoon.connect(p4).approve(bg.address, "250000000000000000");
-        await bg.connect(p4).voteMove(0, 15, 0, 0);
-        await bg.connect(p4).voteMove(0, 10, 0, 0);
-
-        await dangermoon.connect(p1).approve(bg.address, "250000000000000000");
-        await bg.connect(p1).voteMove(0, 25, 1, 0);
-    });
-
-    xit("should end game if team missed their window", async () => {
-        // Create a game w/ short playing window
-        await bg.connect(owner).setMinimumBlocksPerTurn(2);
-        await expect(bg.connect(p1).newGame(2)).to.emit(bg, "GameCreated");
-
-        // Approve 2x to mine 2x blocks, thereby missing playing window
-        await dangermoon.connect(p2).approve(bg.address, "250000000000000000");
-        await dangermoon.connect(p3).approve(bg.address, "250000000000000000");
-
-        // This player missed their turn
-        await expect(bg.connect(p1).voteMove(0, 15, 0, 0))
-          .to.emit(bg, "TeamSkippedMove");
-
-        // So the game is over
-        await expect(bg.connect(p4).voteMove(0, 25, 1, 1))
-          .to.be.revertedWith("The game already has a winner, it is over.");
-    });
-
-    xit("should let winning team end game if other team missed their window", async () => {
-        // Create a game w/ short playing window
-        await bg.connect(owner).setMinimumBlocksPerTurn(2);
-        await expect(bg.connect(p1).newGame(2)).to.emit(bg, "GameCreated");
-
-        // Approve 2x to mine 2x blocks, thereby missing playing window
-        await dangermoon.connect(p2).approve(bg.address, "250000000000000000");
-        await dangermoon.connect(p3).approve(bg.address, "250000000000000000");
-
-        // So the game is over
-        await expect(bg.connect(p4).voteMove(0, 25, 1, 1))
-          .to.emit(bg, "GameOver");
-    });
-
-    xit("should let the players vote to play and claim winnings", async () => {
-        // create a game
-        await expect(bg.connect(p1).newGame(1200)).to.emit(bg, "GameCreated");
-        // approve interactions
-        await dangermoon.connect(p1).approve(bg.address, "750000000000000000");
-        await dangermoon.connect(p2).approve(bg.address, "750000000000000000");
-        await dangermoon.connect(p3).approve(bg.address, "750000000000000000");
-        await dangermoon.connect(p4).approve(bg.address, "750000000000000000");
-
-        // await logAllBalances("before playing");
-        await expectAllBalances({
-          "_bg":                    "0",
-          "_owner": "500000000000000000000000",
-          "_p1":      "45000000000000000000",
-          "_p2":      "45000000000000000000",
-          "_p3":      "45000000000000000000",
-          "_p4":      "45000000000000000000",
-        });
-
-        // let team 1 win
-        // console.log((await dangermoon.balanceOf(p1.address)).toString());
-        await bg.connect(p1).voteMove(0, 15, 0, 0);
-        await bg.connect(p2).voteMove(0, 15, 0, 0);
-        await bg.connect(p4).voteMove(0, 25, 0, 1);
-        // console.log((await dangermoon.balanceOf(p1.address)).toString());
-        // should not let a player make a move at already filled coordinates
-        await expect(bg.connect(p1).voteMove(0, 15, 0, 0))
-          .to.be.revertedWith('There is already a mark at the given coordinates');
-        // should not let a player claim winnings before game is over
-        await expect(bg.connect(p1).claimWinnings(0))
-          .to.be.revertedWith('The game doesnt have a winner yet, it is not over.');
-        await bg.connect(p1).voteMove(0, 15, 1, 1);
-        await bg.connect(p3).voteMove(0, 15, 1, 1);
-        await bg.connect(p4).voteMove(0, 25, 0, 2);
-        // console.log((await dangermoon.balanceOf(p1.address)).toString());
-        await bg.connect(p1).voteMove(0, 25, 2, 2);
-
-        // await logAllBalances("after playing");
-        await expectAllBalances({
-          "_bg":  "1350000000000000000",
-          "_owner": "500000000000000000000000",
-          "_p1":      "44450000000000000000",
-          "_p2":      "44850000000000000000",
-          "_p3":      "44850000000000000000",
-          "_p4":      "44500000000000000000",
-        });
-
-        // const gamePayoutsBefore = await bg.connect(p1).getGamePayouts(0);
-        // console.log(gamePayoutsBefore.draw.toString());
-        // console.log(gamePayoutsBefore.win.toString());
-
-        // verify players can claim their winnings
-        await bg.connect(p1).claimWinnings(0);
-        await bg.connect(p2).claimWinnings(0);
-        await bg.connect(p3).claimWinnings(0);
-        // collect dust for even numbers
-        await bg.connect(owner).withdrawDangerMoon(0);
-
-        await expect(bg.connect(p1).claimWinnings(1))
-          .to.be.revertedWith("No such game exists.");
-        // cant claim 2x
-        await expect(bg.connect(p1).claimWinnings(0))
-          .to.be.revertedWith("You have no DangerMoon to claim, you may have already claimed it.");
-        // didnt play
-        await expect(bg.connect(owner).claimWinnings(0))
-          .to.be.revertedWith("You have no DangerMoon to claim, you may have already claimed it.");
-        // cant claim if you lost
-        await expect(bg.connect(p4).claimWinnings(0))
-          .to.be.revertedWith("The game was not a draw and your team lost.");
-
-        // const gamePayoutsAfter = await bg.connect(p1).getGamePayouts(0);
-        // console.log(gamePayoutsAfter.draw.toString());
-        // console.log(gamePayoutsAfter.win.toString());
-
-        // await logAllBalances("after claiming");
-        await expectAllBalances({
-          "_bg":                    "0",
-          "_owner": "500000135000000000000000",
-          "_p1":      "45236176470588235294",
-          "_p2":      "45064411764705882353",
-          "_p3":      "45064411764705882353",
-          "_p4":      "44500000000000000000",
-        });
+    xit("should let players upgradeAttackRange", async () => {
 
     });
 
-    xit("should let players get dangermoon back on a draw", async () => {
-        // create a game
-        await expect(bg.connect(p1).newGame(1200)).to.emit(bg, "GameCreated");
-        // approve interactions
-        await dangermoon.connect(p1).approve(bg.address, "1000000000000000000");
-        await dangermoon.connect(p2).approve(bg.address,  "250000000000000000");
-        await dangermoon.connect(p4).approve(bg.address, "1000000000000000000");
+    xit("should let players grantEnergy", async () => {
 
-        // await logAllBalances("before playing");
-        await expectAllBalances({
-          "_bg":                    "0",
-          "_owner": "500000000000000000000000",
-          "_p1":      "45000000000000000000",
-          "_p2":      "45000000000000000000",
-          "_p3":      "45000000000000000000",
-          "_p4":      "45000000000000000000",
-        });
+    });
 
-        // force a draw
-        await bg.connect(p1).voteMove(0, 25, 0, 0);
-        await bg.connect(p4).voteMove(0, 25, 0, 1);
-        await bg.connect(p2).voteMove(0, 25, 0, 2);
-        await bg.connect(p4).voteMove(0, 25, 1, 0);
-        await bg.connect(p1).voteMove(0, 25, 1, 2);
-        await bg.connect(p4).voteMove(0, 25, 1, 1);
-        await bg.connect(p1).voteMove(0, 25, 2, 0);
-        await bg.connect(p4).voteMove(0, 25, 2, 2);
-        await bg.connect(p1).voteMove(0, 25, 2, 1);
+    xit("should let players grantHitpoint", async () => {
 
-        // await logAllBalances("after playing");
-        await expectAllBalances({
-          "_bg":  "2250000000000000000",
-          "_owner": "500000000000000000000000",
-          "_p1":      "44000000000000000000",
-          "_p2":      "44750000000000000000",
-          "_p3":      "45000000000000000000",
-          "_p4":      "44000000000000000000",
-        });
+    });
 
-        // verify players can get their money back
-        await bg.connect(p1).claimWinnings(0);
-        await bg.connect(p2).claimWinnings(0);
-        await bg.connect(p4).claimWinnings(0);
+    xit("should let players move", async () => {
 
-        // cant claim twice
-        await expect(bg.connect(p2).claimWinnings(0))
-          .to.be.revertedWith("You have no DangerMoon to claim, you may have already claimed it.");
-        // didnt play
-        await expect(bg.connect(p3).claimWinnings(0))
-          .to.be.revertedWith("You have no DangerMoon to claim, you may have already claimed it.");
-        // didnt play
-        await expect(bg.connect(owner).claimWinnings(0))
-          .to.be.revertedWith("You have no DangerMoon to claim, you may have already claimed it.");
+    });
 
-        // await logAllBalances("after claiming");
-        await expectAllBalances({
-          "_bg":                    "0",
-          "_owner": "500000225000000000000000",
-          "_p1":      "44900000000000000000",
-          "_p2":      "44975000000000000000",
-          "_p3":      "45000000000000000000",
-          "_p4":      "44900000000000000000",
-        });
+    xit("should let players juryVote", async () => {
+
+    });
+
+    xit("should not let players attack out of range", async () => {
+
+    });
+
+    xit("should let claimWinnings", async () => {
 
     });
 
