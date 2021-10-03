@@ -338,6 +338,8 @@ contract DangerMoonBattleground is Ownable {
     event EnergyGranted(uint256 gameId, address player, uint8 x, uint8 y, uint8 targetX, uint8 targetY);
 
     event HitpointGranted(uint256 gameId, address player, uint8 x, uint8 y, uint8 targetX, uint8 targetY);
+
+    event PlayerMoved(uint256 gameId, address player, uint8 x, uint8 y, uint8 targetX, uint8 targetY);
     // // PlayerMadeMove signals that `player` moved to `xCoord`, `yCoord`.
     // event PlayerMadeMove(uint256 gameId, address player, uint8 xCoord, uint8 yCoord);
     // // GameOver signals that the game with the id `gameId` is over.
@@ -616,8 +618,10 @@ contract DangerMoonBattleground is Ownable {
         // Spend energy
         piece.energy -= 1;
         // Game storage piece = games[gameId].board[x][y];
-        target = piece; // TODO check
+        game.board[targetX][targetY] = piece; // TODO check
         delete games[gameId].board[x][y];
+
+        emit PlayerMoved(gameId, msg.sender, x, y, targetX, targetY);
     }
 
     function attack(uint256 gameId, uint8 x, uint8 y, uint8 targetX, uint8 targetY) public {
