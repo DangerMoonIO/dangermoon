@@ -432,7 +432,7 @@ contract DangerMoonBattleground is Ownable {
         // TODO think about board size & player limits
         // sqrt(20*3) =~ 7
         // sqrt(200*3) =~ 25
-        require(playerLimit >= 5, "Player limit too high");
+        require(playerLimit >= 2, "Player limit too low");
         require(playerLimit <= 20, "Player limit too high");
 
         games.push();

@@ -156,6 +156,12 @@ async function expectAllBalances(expectations) {
   expect( (await dangermoon.balanceOf(p4.address)).toString(), "p4").to.equal(_p4);
 }
 
+async function mineTenBlocks() {
+  for (let i=0; i<10; i++) {
+    await dangermoon.connect(p1).approve(bg.address, "100000000000000000");
+  }
+}
+
 async function printGameBoard(gameId) {
   const {
     mustJoinByBlock,
@@ -309,7 +315,6 @@ describe('TicTacToe', function() {
       await expect(bg.connect(p4).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p4.address, 2, 0);
 
       // await printGameBoard(0);
-
       await dangermoon.connect(p1).approve(bg.address, "100000000000000000");
       await dangermoon.connect(p1).approve(bg.address, "100000000000000000");
       await dangermoon.connect(p1).approve(bg.address, "100000000000000000");
@@ -406,26 +411,46 @@ describe('TicTacToe', function() {
 
     it("should let players claimWinnings", async () => {
       await dangermoon.connect(p1).approve(bg.address, "100000000000000000");
-      await expect(bg.connect(p1).createGame(5)).to.emit(bg, "GameCreated");
+      await expect(bg.connect(p1).createGame(2)).to.emit(bg, "GameCreated");
 
-      await dangermoon.connect(p1).approve(bg.address, "2000000000000000000");
-      await bg.connect(p1).joinGame(0);
-      await bg.connect(p1).joinGame(0);
-      // await expect(bg.connect(p1).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p1.address, 0, 4);
+      await dangermoon.connect(p1).approve(bg.address, "1200000000000000000");
+      await expect(bg.connect(p1).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p1.address, 0, 0);
 
       await dangermoon.connect(p2).approve(bg.address, "1000000000000000000");
-      await bg.connect(p2).joinGame(0);
-      // await expect(bg.connect(p2).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p2.address, 4, 2);
+      await expect(bg.connect(p2).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p2.address, 1, 0);
 
-      await dangermoon.connect(p3).approve(bg.address, "1000000000000000000");
-      await bg.connect(p3).joinGame(0);
-      // await expect(bg.connect(p3).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p3.address, 0, 1);
-
-      await dangermoon.connect(p4).approve(bg.address, "1000000000000000000");
-      await bg.connect(p4).joinGame(0);
-      // await expect(bg.connect(p4).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p4.address, 0, 1);
+      await bg.connect(p1).attack(0, 0, 0, 1, 0);
+      await mineTenBlocks();
+      await bg.connect(p1).claimEnergy(0, 0, 0);
+      await bg.connect(p1).attack(0, 0, 0, 1, 0);
+      await mineTenBlocks();
+      await bg.connect(p1).claimEnergy(0, 0, 0);
+      await bg.connect(p1).attack(0, 0, 0, 1, 0);
 
       await printGameBoard(0);
+
+      // await logAllBalances("before claim");
+      await expectAllBalances({
+        "_bg": "320000000000000000",
+        "_owner": "500000000000000000000000",
+        "_p1": "44780000000000000000",
+        "_p2": "44900000000000000000",
+        "_p3": "45000000000000000000",
+        "_p4": "45000000000000000000",
+      });
+
+      await bg.connect(p1).claimWinnings(0, 0, 0);
+
+      // await logAllBalances("after claim");
+      await expectAllBalances({
+        "_bg": "0",
+        "_owner": "500000032000000000000000",
+        "_p1": "45068000000000000000",
+        "_p2": "44900000000000000000",
+        "_p3": "45000000000000000000",
+        "_p4": "45000000000000000000",
+      });
+
     });
 
     xit("should let players grantHitpoint", async () => {
