@@ -332,6 +332,12 @@ contract DangerMoonBattleground is Ownable {
     event GameCreated(uint256 gameId, address creator, uint8 playerLimit, uint8 width, uint8 height);
     // GameJoined signals that `player` joined the game with the id `gameId` at x, y
     event GameJoined(uint256 gameId, address player, uint8 xCoord, uint8 yCoord);
+
+    event UpgradedAttackRange(uint256 gameId, address player, uint8 range);
+
+    event EnergyGranted(uint256 gameId, address player, uint8 x, uint8 y, uint8 targetX, uint8 targetY);
+
+    event HitpointGranted(uint256 gameId, address player, uint8 x, uint8 y, uint8 targetX, uint8 targetY);
     // // PlayerMadeMove signals that `player` moved to `xCoord`, `yCoord`.
     // event PlayerMadeMove(uint256 gameId, address player, uint8 xCoord, uint8 yCoord);
     // // GameOver signals that the game with the id `gameId` is over.
@@ -530,6 +536,8 @@ contract DangerMoonBattleground is Ownable {
         piece.energy -= 1;
         // Buff range
         piece.range += 1;
+
+        emit UpgradedAttackRange(gameId, msg.sender, piece.range);
     }
 
     function grantEnergy(uint256 gameId, uint8 x, uint8 y, uint8 targetX, uint8 targetY) public {
@@ -550,6 +558,8 @@ contract DangerMoonBattleground is Ownable {
         // Reallocate 1 energy to the piece on targetX,targetY
         piece.energy -= 1;
         target.energy += 1;
+
+        emit EnergyGranted(gameId, msg.sender, x, y, targetX, targetY);
     }
 
     function grantHitpoint(uint256 gameId, uint8 x, uint8 y, uint8 targetX, uint8 targetY) public {
@@ -578,6 +588,8 @@ contract DangerMoonBattleground is Ownable {
         // Reallocate 1 hitpoint from sender to the piece on targetX,targetY
         piece.hitpoints -= 1;
         target.hitpoints += 1;
+
+        emit HitpointGranted(gameId, msg.sender, x, y, targetX, targetY);
     }
 
     function move(uint256 gameId, uint8 x, uint8 y, uint8 targetX, uint8 targetY) public {

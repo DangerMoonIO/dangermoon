@@ -341,16 +341,33 @@ describe('TicTacToe', function() {
           .to.be.revertedWith("Too late to join game.");
     });
 
-    xit("should let players upgradeAttackRange", async () => {
+    it("should let players upgradeAttackRange", async () => {
+        await dangermoon.connect(p1).approve(bg.address, "100000000000000000");
+        await expect(bg.connect(p1).createGame(5)).to.emit(bg, "GameCreated");
 
+        await dangermoon.connect(p1).approve(bg.address, "1000000000000000000");
+        await expect(bg.connect(p1).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p1.address, 2, 1);
+
+        // await printGameBoard(0);
+        await expect(bg.connect(p1).upgradeAttackRange(0, 2, 1))
+          .to.emit(bg, "UpgradedAttackRange").withArgs(0, p1.address, 3);
+        // await printGameBoard(0);
     });
 
-    xit("should let players grantEnergy", async () => {
+    it("should let players grantEnergy", async () => {
+        await dangermoon.connect(p1).approve(bg.address, "100000000000000000");
+        await expect(bg.connect(p1).createGame(5)).to.emit(bg, "GameCreated");
 
-    });
+        await dangermoon.connect(p1).approve(bg.address, "1000000000000000000");
+        await expect(bg.connect(p1).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p1.address, 2, 2);
 
-    xit("should let players grantHitpoint", async () => {
+        await dangermoon.connect(p2).approve(bg.address, "1000000000000000000");
+        await expect(bg.connect(p2).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p2.address, 3, 1);
 
+        // await printGameBoard(0);
+        await expect(bg.connect(p1).grantEnergy(0, 2, 2, 3, 1))
+          .to.emit(bg, "EnergyGranted").withArgs(0, p1.address, 2, 2,  3, 1);
+        // await printGameBoard(0);
     });
 
     xit("should let players move", async () => {
@@ -367,6 +384,25 @@ describe('TicTacToe', function() {
 
     xit("should let claimWinnings", async () => {
 
+    });
+
+    xit("should let players grantHitpoint", async () => {
+        await dangermoon.connect(p1).approve(bg.address, "100000000000000000");
+        await expect(bg.connect(p1).createGame(5)).to.emit(bg, "GameCreated");
+
+        await dangermoon.connect(p1).approve(bg.address, "1000000000000000000");
+        await expect(bg.connect(p1).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p1.address, 0, 1);
+
+        await dangermoon.connect(p2).approve(bg.address, "1000000000000000000");
+        await expect(bg.connect(p2).joinGame(0)).to.emit(bg, "GameJoined").withArgs(0, p2.address, 1, 2);
+
+        await printGameBoard(0);
+
+        // TODO shouldnt be able to grant >3 HP
+        await expect(bg.connect(p1).grantHitpoint(0, 0, 1, 1, 2))
+          .to.emit(bg, "HitpointGranted").withArgs(0, p1.address, 0, 1,  1, 2);
+
+        await printGameBoard(0);
     });
 
 });
