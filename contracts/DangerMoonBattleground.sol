@@ -367,6 +367,9 @@ contract DangerMoonBattleground is Ownable {
       Piece[20][20] board;
     }
 
+    // playerGames stores the games each player is in. This lets us render the
+    // the games players care about in the UI.
+    mapping(address => uint256[]) playerGames;
     // games stores all the games, including finished and still-running ones
     // It is possible to iterate over all games by going from `0` to `games.length`.
     Game[] public games;
@@ -422,6 +425,10 @@ contract DangerMoonBattleground is Ownable {
         if (amount > 0) {
             dangermoon.transfer(owner(), amount);
         }
+    }
+
+    function getPlayerGames() public view returns (uint256[] memory) {
+        return playerGames[msg.sender];
     }
 
     function getNumGames() public view returns (uint256) {
@@ -480,6 +487,9 @@ contract DangerMoonBattleground is Ownable {
         require(allowance >= entryFee, "Need DangerMoon transfer approval.");
         dangermoon.transferFrom(msg.sender, address(this), entryFee);
         game.prizePool = game.prizePool.add(entryFee);
+
+        // Track which games player is playing
+        playerGames[msg.sender].push(gameId);
 
         // Generate board piece
         Piece memory piece;

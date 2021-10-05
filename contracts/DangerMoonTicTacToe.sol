@@ -375,10 +375,10 @@ contract DangerMoonTicTacToe is Ownable {
         mapping(address => uint256) teamOneVoteFees;
         mapping(address => uint256) teamTwoVoteFees;
     }
+
     // playerVotes stores the games youve voted on. This lets us render the
     // the games you care about in the UI.
     mapping(address => uint256[]) playerVotes;
-
     // games stores all the games.
     // Games that are already over as well as games that are still running.
     // It is possible to iterate over all games, as the keys of the mapping
