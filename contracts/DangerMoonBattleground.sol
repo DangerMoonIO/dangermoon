@@ -378,6 +378,8 @@ contract DangerMoonBattleground is Ownable {
     uint256 private randomSeed = 0;
     // dangermoon team's cut of prize pool
     uint8 public takeFeePercent = 10;
+    // lets the team lock this game contract and migrate to new version
+    bool public lockNewGame = false;
 
     constructor(address _dangermoonAddress, uint16 _blocksPerRound) public {
       dangermoon = IDangerMoon(_dangermoonAddress);
@@ -399,6 +401,10 @@ contract DangerMoonBattleground is Ownable {
         } else if (y != 0) {
             z = 1;
         }
+    }
+
+    function setLockNewGame(bool _lockNewGame) public onlyOwner() {
+        lockNewGame = _lockNewGame;
     }
 
     function setTakeFeePercent(uint8 _takeFeePercent) public onlyOwner() {
@@ -434,6 +440,7 @@ contract DangerMoonBattleground is Ownable {
         // sqrt(200*3) =~ 25
         require(playerLimit >= 2, "Player limit too low"); // TODO set minPlayers
         require(playerLimit <= 20, "Player limit too high");
+        require(!lockNewGame, "Cant create a new game right now");
 
         games.push();
         uint256 newIndex = games.length - 1;
