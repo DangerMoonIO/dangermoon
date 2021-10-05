@@ -398,6 +398,9 @@ describe('TicTacToe', function() {
         // console.log(gamePayoutsBefore.draw.toString());
         // console.log(gamePayoutsBefore.win.toString());
 
+        // const playerVotes = await tictactoe.connect(t1p1).getPlayerVotes();
+        // console.log(playerVotes);
+
         // verify players can claim their winnings
         await tictactoe.connect(t1p1).claimWinnings(0);
         await tictactoe.connect(t1p2).claimWinnings(0);

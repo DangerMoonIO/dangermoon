@@ -375,15 +375,15 @@ contract DangerMoonTicTacToe is Ownable {
         mapping(address => uint256) teamOneVoteFees;
         mapping(address => uint256) teamTwoVoteFees;
     }
+    // playerVotes stores the games youve voted on. This lets us render the
+    // the games you care about in the UI.
+    mapping(address => uint256[]) playerVotes;
 
     // games stores all the games.
     // Games that are already over as well as games that are still running.
     // It is possible to iterate over all games, as the keys of the mapping
-    // are known to be the integers from `1` to `numGames`.
-    mapping(uint256 => Game) public games;
-    // numGames stores the total number of games in this contract.
-    uint256 public numGames;
-
+    // are known to be the integers from `0` to `getNumGames() - 1`.
+    Game[] public games;
     // determines number of votes per in-game turn
     uint8 public minimumVotesPerTurn = 25;
     // determines number of blocks per in-game turn
@@ -392,11 +392,17 @@ contract DangerMoonTicTacToe is Ownable {
     uint8 public takeFeePercent = 10;
     // cost of a tictactoe vote as a percent of dangermoon's daily minimum entry
     uint8 public entryFeePercent = 10;
-    // dangermoon address (for transfers, reading the daily $10 price, etc)
+    // lets the team lock this game contract and migrate to new version
+    bool public lockNewGame = false;
+    // dangermoon contract (for transfers, reading the daily $10 price, etc)
     IDangerMoon public dangermoon;
 
     constructor(address _dangermoonAddress) public {
       dangermoon = IDangerMoon(_dangermoonAddress);
+    }
+
+    function setLockNewGame(bool _lockNewGame) public onlyOwner() {
+        lockNewGame = _lockNewGame;
     }
 
     function setTakeFeePercent(uint8 _takeFeePercent) public onlyOwner() {
@@ -422,6 +428,14 @@ contract DangerMoonTicTacToe is Ownable {
         if (amount > 0) {
             dangermoon.transfer(owner(), amount);
         }
+    }
+
+    function getNumGames() public view returns (uint256) {
+        return games.length;
+    }
+
+    function getPlayerVotes() public view returns (uint256[] memory) {
+        return playerVotes[msg.sender];
     }
 
     function getGameVotes(uint256 gameId) public view returns (uint256[3][3] memory) {
@@ -463,18 +477,18 @@ contract DangerMoonTicTacToe is Ownable {
           _blocksPerTurn >= minimumBlocksPerTurn,
           "Turns must be at least the minimum number of blocks"
         );
-        Game memory game;
-        game.turn = Teams.TeamOne;
-        game.isTeamOneEven = (uint256(msg.sender).mod(2) == 0);
-        game.turnEndBlock = block.number.add(_blocksPerTurn);
-        game.blocksPerTurn = _blocksPerTurn;
+        require(!lockNewGame, "Cant create a new game right now");
 
-        numGames = numGames.add(1);
-        games[numGames] = game;
+        games.push();
+        uint256 newIndex = games.length - 1;
+        games[newIndex].turn = Teams.TeamOne;
+        games[newIndex].isTeamOneEven = (uint256(msg.sender).mod(2) == 0);
+        games[newIndex].turnEndBlock = block.number.add(_blocksPerTurn);
+        games[newIndex].blocksPerTurn = _blocksPerTurn;
 
-        emit GameCreated(numGames, msg.sender, game.isTeamOneEven);
+        emit GameCreated(newIndex, msg.sender, games[newIndex].isTeamOneEven);
 
-        return numGames;
+        return newIndex;
     }
 
     function isPlayerOnTeamOne(bool isTeamOneEven, address player) private pure returns (bool) {
@@ -499,7 +513,7 @@ contract DangerMoonTicTacToe is Ownable {
         Game storage game = games[gameId];
 
         // CHECKS
-        require(0 < gameId && gameId <= numGames, "No such game exists.");
+        require(gameId <= games.length - 1, "No such game exists.");
         require(numVotes <= minimumVotesPerTurn, "Too many votes.");
         require(game.winner == Winners.None, "The game already has a winner, it is over.");
         require(game.board[xCoord][yCoord] == Teams.None, "There is already a mark at the given coordinates.");
@@ -528,6 +542,9 @@ contract DangerMoonTicTacToe is Ownable {
         uint256 allowance = dangermoon.allowance(msg.sender, address(this));
         require(allowance >= voteFee, "This contract is not approved to transfer enough DangerMoon.");
         dangermoon.transferFrom(msg.sender, address(this), voteFee);
+
+        // keep track of which games player is playing
+        playerVotes[msg.sender].push(gameId);
 
         // Update game prize pool and player's vote-contribution to weight prize payouts
         game.prizePool = game.prizePool.add(voteFee);
@@ -744,11 +761,12 @@ contract DangerMoonTicTacToe is Ownable {
     }
 
     function claimWinnings(uint256 gameId) public {
+      // CHECKS
+      require(gameId <= games.length - 1, "No such game exists.");
+
       Game storage game = games[gameId];
       Teams playerTeam = getPlayerTeam(gameId, msg.sender);
 
-      // CHECKS
-      require(0 < gameId && gameId <= numGames, "No such game exists.");
       require(game.winner != Winners.None, "The game doesnt have a winner yet, it is not over.");
       require(
         game.winner == Winners.Draw || uint8(game.winner) == uint8(playerTeam),
