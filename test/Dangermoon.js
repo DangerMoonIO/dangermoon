@@ -1,5 +1,5 @@
 const CONFIG = require('../hardhat.config.js');
-const { MNEMONIC } = require('../secrets.json');
+const { PRIVATE_KEY } = require('../secrets.json');
 const { ethers } = require("hardhat");
 const { expect } = require("chai");
 
@@ -236,7 +236,7 @@ describe("DangerMoon", function () {
     // Set up test wallet
     const rpcUrl = CONFIG.networks.hardhat.forking.url;
     const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
-    testWallet = ethers.Wallet.fromMnemonic(MNEMONIC);
+    testWallet = new ethers.Wallet(PRIVATE_KEY);
     testWallet = testWallet.connect(provider);
 
     // Send faucet eth to dangermoon contract
