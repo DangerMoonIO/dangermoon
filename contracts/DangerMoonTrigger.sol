@@ -465,6 +465,11 @@ interface IPegSwap {
     function swap(uint256 amount, address source, address target) external;
 }
 
+interface IDangerMoon is ERC20 {
+    function lockThePayout() external returns (bool);
+    function _minimumTokensForReflection() external returns (uint256);
+}
+
 contract DangerMoonTrigger is Ownable {
 
     using SafeMath for uint256;
@@ -475,6 +480,9 @@ contract DangerMoonTrigger is Ownable {
     address public linkAddress = 0xF8A0BF9cF54Bb92F17374d9e9A321E6a111a51bD;
     address public oracleLinkAddress = 0x404460C6A5EdE2D891e8297795264fDe62ADBB75;
     address public pegSwapAddress = 0x1FCc3B22955e76Ca48bF025f1A6993685975Bb9e;
+
+    uint256 public commission = 5000000000000000; // 0.005 BNB to start
+    uint256 public autobuy = 100000000000000; // 0.0001 BNB to start
 
     constructor() public {
 
@@ -489,22 +497,33 @@ contract DangerMoonTrigger is Ownable {
         payable(owner()).transfer(address(this).balance);
     }
 
+    function setCommission(uint256 _commission) public onlyOwner {
+        commission = _commission;
+    }
+
+    function setAutobuy(uint256 _autobuy) public onlyOwner {
+        autobuy = _autobuy;
+    }
+
     receive() external payable {
         triggerDangermoonPayout();
     }
 
     function triggerDangermoonPayout() payable public {
 
+        require(msg.value > commission.add(autobuy), "Not enough BNB sent");
+        require(!IDangerMoon(dangermoonAddress).lockThePayout(), "DangerMoon payout is locked");
+
         // save some for gas
-        uint256 valueToSwap = msg.value.sub(5000000000000000);
+        uint256 valueToSwap = msg.value.sub(commission).sub(autobuy);
 
         // swap BNB into link on pcs
-        address[] memory path = new address[](2);
-        path[0] = uniswapV2Router.WETH();
-        path[1] = linkAddress;
+        address[] memory bnbLinkPath = new address[](2);
+        bnbLinkPath[0] = uniswapV2Router.WETH();
+        bnbLinkPath[1] = linkAddress;
         uniswapV2Router.swapExactETHForTokens{value:valueToSwap}(
             0, // accept any amount of LINK
-            path,
+            bnbLinkPath,
             address(this),
             block.timestamp
         );
@@ -515,13 +534,27 @@ contract DangerMoonTrigger is Ownable {
             IPegSwap(pegSwapAddress).swap(linkAmount, linkAddress, oracleLinkAddress);
         }
 
-        // send 0.2 oracle link to dangermoon contract
         if (IERC20(oracleLinkAddress).balanceOf(address(this)) > 200000000000000000) {
+            // send 0.2 oracle link to dangermoon contract
             IERC20(oracleLinkAddress).transfer(
                 dangermoonAddress,
                 200000000000000000
             );
+
+            // immediately swap BNB into dangermoon on pcs to trigger payout
+            address[] memory bnbDangermoonPath = new address[](2);
+            bnbDangermoonPath[0] = uniswapV2Router.WETH();
+            bnbDangermoonPath[1] = dangermoonAddress;
+            uniswapV2Router.swapExactETHForTokensSupportingFeeOnTransferTokens{value:autobuy}(
+                1, // accept any amount of DangerMoon > 0
+                bnbDangermoonPath,
+                msg.sender,
+                block.timestamp
+            );
         }
+
+        // pay commission
+        payable(owner()).transfer(address(this).balance);
     }
 
 }

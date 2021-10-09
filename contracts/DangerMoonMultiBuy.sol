@@ -392,6 +392,7 @@ interface IUniswapV2Router02 is IUniswapV2Router01 {
 }
 
 interface IDangerMoon {
+    function lockThePayout() external returns (bool);
     function _minimumTokensForReflection() external returns (uint256);
 }
 
@@ -403,7 +404,7 @@ contract DangerMoonMultiBuy is Ownable {
     address public dangermoonAddress = 0x90c7e271F8307E64d9A1bd86eF30961e5e1031e7;
     address public uniswapV2RouterAddress = 0x10ED43C718714eb63d5aA57B78B54704E256024E;
 
-    uint8 public maxBuysPerTx = 5; // will have to tune this depending on what fits in block
+    uint8 public maxBuysPerTx = 10;
     uint256 public commission = 10000000000000000; // 0.01 BNB to start
 
     constructor() public {
@@ -433,7 +434,7 @@ contract DangerMoonMultiBuy is Ownable {
         require(numBuys <= maxBuysPerTx, "Use fewer buys, too many for blocksize");
         require(msg.value > commission, "Not enough BNB sent");
 
-        // take 0.01 bnb for commission & gas, and divide remaining into evenly sized buys
+        // take 0.01 bnb for commission, and divide remaining into evenly sized buys
         uint256 valueToSwap = msg.value.sub(commission).div(numBuys);
 
         // determine dangermoon amount needed for caller to get entries
@@ -452,5 +453,8 @@ contract DangerMoonMultiBuy is Ownable {
               block.timestamp
           );
         }
+
+        // pay commission
+        payable(owner()).transfer(address(this).balance);
     }
 }

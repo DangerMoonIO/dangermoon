@@ -14,11 +14,11 @@ async function main() {
   // await hre.run('compile');
 
   const DangerMoonMultiBuy = await hre.ethers.getContractFactory("DangerMoonMultiBuy");
-  const dangermoonTrigger = await DangerMoonMultiBuy.deploy();
+  const dangermoonMultiBuy = await DangerMoonMultiBuy.deploy();
 
-  await dangermoonTrigger.deployed();
+  await dangermoonMultiBuy.deployed();
 
-  console.log("DangerMoonMultiBuy deployed to bsc mainnet:", dangermoonTrigger.address);
+  console.log("DangerMoonMultiBuy deployed to bsc mainnet:", dangermoonMultiBuy.address);
 }
 
 // We recommend this pattern to be able to use async/await everywhere
