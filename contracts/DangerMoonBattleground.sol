@@ -1,6 +1,14 @@
 pragma solidity ^0.6.12;
 pragma experimental ABIEncoderV2;
 
+// TODO
+// use safemath for all math
+
+// TODO
+// contracts/DangerMoonBattleground.sol:326:1: Warning: Contract code size exceeds 24576 bytes (a limit introduced in Spurious Dragon). This contract may not be deployable on mainnet. Consider enabling the optimizer (with a low "runs" value!), turning off revert strings, or using libraries.
+// contract DangerMoonBattleground is Ownable {
+// ^ (Relevant source part starts here and spans across multiple lines).
+
 // SPDX-License-Identifier: Unlicensed
 
 // TODO remove
