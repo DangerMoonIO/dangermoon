@@ -94,40 +94,6 @@ const UNISWAP_ABI_FRAGMENT = [
         }
       ],
       "payable" : true
-   },
-   {
-      "name" : "swapExactTokensForETHSupportingFeeOnTransferTokens",
-      "type" : "function",
-      "inputs" : [
-         {
-            "type" : "uint256",
-            "name" : "amountIn"
-         },
-         {
-            "type" : "uint256",
-            "name" : "amountOutMin"
-         },
-         {
-            "type" : "address[]",
-            "name" : "path"
-         },
-         {
-            "type" : "address",
-            "name" : "to"
-         },
-         {
-            "type" : "uint256",
-            "name" : "deadline"
-         }
-      ],
-      "constant" : false,
-      "outputs" : [
-        {
-           "type" : "uint256[]",
-           "name" : "amounts"
-        }
-      ],
-      "payable" : false
    }
 ];
 

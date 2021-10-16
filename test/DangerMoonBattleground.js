@@ -95,40 +95,6 @@ const UNISWAP_ABI_FRAGMENT = [
       ],
       "payable" : true
    },
-   {
-      "name" : "swapExactTokensForETHSupportingFeeOnTransferTokens",
-      "type" : "function",
-      "inputs" : [
-         {
-            "type" : "uint256",
-            "name" : "amountIn"
-         },
-         {
-            "type" : "uint256",
-            "name" : "amountOutMin"
-         },
-         {
-            "type" : "address[]",
-            "name" : "path"
-         },
-         {
-            "type" : "address",
-            "name" : "to"
-         },
-         {
-            "type" : "uint256",
-            "name" : "deadline"
-         }
-      ],
-      "constant" : false,
-      "outputs" : [
-        {
-           "type" : "uint256[]",
-           "name" : "amounts"
-        }
-      ],
-      "payable" : false
-   }
 ];
 
 const DEAD = '0x000000000000000000000000000000000000dEaD';
@@ -330,7 +296,7 @@ describe('TicTacToe', function() {
       await bg.connect(p1).attack(0, 1, 1, 1, 0);
       await bg.connect(p1).attack(0, 0, 1, 1, 0);
       await expect(bg.connect(p4).attack(0, 2, 0, 1, 0))
-        .to.be.revertedWith("Target is dead");
+        .to.be.revertedWith("Target dead");
 
       // await printGameBoard(0);
       await bg.connect(p2).juryVote(0, 1, 0, 2, 0);
@@ -349,7 +315,7 @@ describe('TicTacToe', function() {
 
       // too late to join
       await expect(bg.connect(p2).joinGame(0))
-        .to.be.revertedWith("Too late to join game.");
+        .to.be.revertedWith("Too late to join");
     });
 
     it("should let players upgradeAttackRange", async () => {
@@ -410,7 +376,7 @@ describe('TicTacToe', function() {
 
       // await printGameBoard(0);
       await expect(bg.connect(p1).attack(0, 0, 4, 0, 1))
-        .to.be.revertedWith("Target not within range");
+        .to.be.revertedWith("Not in range");
     });
 
     it("should let players claimWinnings", async () => {
