@@ -19,7 +19,7 @@ async function main() {
   const DangerMoonTicTacToe = await hre.ethers.getContractFactory("DangerMoonTicTacToe");
   const tictactoe = await DangerMoonTicTacToe.deploy(DANGERMOON_ADDRESS);
   await tictactoe.deployed();
-  console.log("TicTacToe deployed to kovan:", tictactoe.address);
+  console.log("TicTacToe deployed to:", tictactoe.address);
   await tictactoe.newGame(1200);
 
   // Get dangermoon contract and exclude tictactoe from fees
@@ -29,7 +29,7 @@ async function main() {
   await excludeTx.wait();
 
   // Verify that we excluded tictactoe from fees
-  const isExcludedFromFee = await dangermoon.excludeFromFee(tictactoe.address);
+  const isExcludedFromFee = await dangermoon.isExcludedFromFee(tictactoe.address);
   console.log("isExcludedFromFee", isExcludedFromFee);
 }
 
