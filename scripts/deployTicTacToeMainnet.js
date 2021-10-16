@@ -17,14 +17,20 @@ async function main() {
 
   // We get the contract to deploy
   const DangerMoonTicTacToe = await hre.ethers.getContractFactory("DangerMoonTicTacToe");
-
   const tictactoe = await DangerMoonTicTacToe.deploy(DANGERMOON_ADDRESS);
-
   await tictactoe.deployed();
-
   console.log("TicTacToe deployed to kovan:", tictactoe.address);
-
   await tictactoe.newGame(1200);
+
+  // Get dangermoon contract and exclude tictactoe from fees
+  const DangerMoon = await ethers.getContractFactory("DangerMoon");
+  let dangermoon = await DangerMoon.attach(DANGERMOON_ADDRESS);
+  const excludeTx = await dangermoon.excludeFromFee(tictactoe.address);
+  await excludeTx.wait();
+
+  // Verify that we excluded tictactoe from fees
+  const isExcludedFromFee = await dangermoon.excludeFromFee(tictactoe.address);
+  console.log("isExcludedFromFee", isExcludedFromFee);
 }
 
 // We recommend this pattern to be able to use async/await everywhere

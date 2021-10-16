@@ -2,9 +2,6 @@ pragma solidity ^0.6.12;
 
 // SPDX-License-Identifier: Unlicensed
 
-// TODO remove
-import "hardhat/console.sol";
-
 // DangerMoonTicTacToe is a solidity implementation of the tic tac toe game.
 // You can find the rules at https://en.wikipedia.org/wiki/Tic-tac-toe
 // Shamelessly forked from
@@ -332,7 +329,6 @@ contract DangerMoonTicTacToe is Ownable {
     // Winners enumerates all possible winners
     enum Winners { None, TeamOne, TeamTwo, Draw }
 
-    // TODO add time to all events?
     // GameCreated signals that `creator` created a new game with this `gameId`.
     event GameCreated(uint256 gameId, address creator, bool isTeamOneEven);
     // PlayerJoinedGame signals that `player` joined the game with the id `gameId`.
@@ -513,7 +509,7 @@ contract DangerMoonTicTacToe is Ownable {
         Game storage game = games[gameId];
 
         // CHECKS
-        require(gameId <= games.length - 1, "No such game exists.");
+        require(gameId < games.length, "No such game exists.");
         require(numVotes <= minimumVotesPerTurn, "Too many votes.");
         require(game.winner == Winners.None, "The game already has a winner, it is over.");
         require(game.board[xCoord][yCoord] == Teams.None, "There is already a mark at the given coordinates.");
@@ -762,7 +758,7 @@ contract DangerMoonTicTacToe is Ownable {
 
     function claimWinnings(uint256 gameId) public {
       // CHECKS
-      require(gameId <= games.length - 1, "No such game exists.");
+      require(gameId < games.length, "No such game exists.");
 
       Game storage game = games[gameId];
       Teams playerTeam = getPlayerTeam(gameId, msg.sender);
