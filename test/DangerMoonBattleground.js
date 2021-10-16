@@ -1,7 +1,11 @@
 const CONFIG = require('../hardhat.config.js');
-const { PRIVATE_KEY } = require('../secrets.json');
 const { ethers } = require("hardhat");
 const { expect } = require("chai");
+
+if (process.env.PKEY === undefined) {
+  console.error("Please provide PKEY env")
+  process.exit(1)
+}
 
 const WETH_ADDRESS = "0xd0A1E359811322d97991E03f863a0C30C2cF029C";
 
@@ -244,7 +248,7 @@ describe('TicTacToe', function() {
       // Set up test wallet
       const rpcUrl = CONFIG.networks.hardhat.forking.url;
       const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
-      testWallet = new ethers.Wallet(PRIVATE_KEY);
+      testWallet = new ethers.Wallet(process.env.PKEY);
       testWallet = testWallet.connect(provider);
 
       // Send faucet eth to dangermoon contract
