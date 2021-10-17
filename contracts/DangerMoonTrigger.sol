@@ -474,23 +474,26 @@ contract DangerMoonTrigger is Ownable {
 
     using SafeMath for uint256;
 
-    IUniswapV2Router02 public uniswapV2Router;
-    address public dangermoonAddress = 0x90c7e271F8307E64d9A1bd86eF30961e5e1031e7;
-    address public uniswapV2RouterAddress = 0x10ED43C718714eb63d5aA57B78B54704E256024E;
-    address public linkAddress = 0xF8A0BF9cF54Bb92F17374d9e9A321E6a111a51bD;
-    address public oracleLinkAddress = 0x404460C6A5EdE2D891e8297795264fDe62ADBB75;
-    address public pegSwapAddress = 0x1FCc3B22955e76Ca48bF025f1A6993685975Bb9e;
+    address public constant linkAddress = 0xF8A0BF9cF54Bb92F17374d9e9A321E6a111a51bD;
+    address public constant pegSwapAddress = 0x1FCc3B22955e76Ca48bF025f1A6993685975Bb9e;
+    address public constant dangermoonAddress = 0x90c7e271F8307E64d9A1bd86eF30961e5e1031e7;
+    address public constant oracleLinkAddress = 0x404460C6A5EdE2D891e8297795264fDe62ADBB75;
+    address public constant uniswapV2RouterAddress = 0x10ED43C718714eb63d5aA57B78B54704E256024E;
+
+    IERC20 public constant link = IERC20(linkAddress);
+    IERC20 public constant oracleLink = IERC20(oracleLinkAddress);
+    IPegSwap public constant pegswap = IPegSwap(pegSwapAddress);
+    IDangerMoon public constant dangermoon = IDangerMoon(dangermoonAddress);
+    IUniswapV2Router02 public constant uniswapV2Router = IUniswapV2Router02(uniswapV2RouterAddress);
 
     uint256 public commission = 10000000000000000; // 0.01 BNB to start
     uint256 public autobuy = 100000000000000; // 0.0001 BNB to start
 
     constructor() public {
 
-        IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(uniswapV2RouterAddress);
-        uniswapV2Router = _uniswapV2Router;
 
         // approve link spends once
-        IERC20(linkAddress).approve(pegSwapAddress, type(uint256).max);
+        link.approve(pegSwapAddress, type(uint256).max);
     }
 
     function withdraw() public onlyOwner {
@@ -512,7 +515,7 @@ contract DangerMoonTrigger is Ownable {
     function triggerDangermoonPayout() payable public {
 
         require(msg.value > commission.add(autobuy), "Not enough BNB sent");
-        require(!IDangerMoon(dangermoonAddress).lockThePayout(), "DangerMoon payout is locked");
+        require(!dangermoon.lockThePayout(), "DangerMoon payout is locked");
 
         // save some for gas
         uint256 valueToSwap = msg.value.sub(commission).sub(autobuy);
@@ -529,17 +532,14 @@ contract DangerMoonTrigger is Ownable {
         );
 
         // swap link into pegswap link
-        uint256 linkAmount = IERC20(linkAddress).balanceOf(address(this));
+        uint256 linkAmount = link.balanceOf(address(this));
         if (linkAmount > 200000000000000000) {
-            IPegSwap(pegSwapAddress).swap(linkAmount, linkAddress, oracleLinkAddress);
+            pegswap.swap(linkAmount, linkAddress, oracleLinkAddress);
         }
 
-        if (IERC20(oracleLinkAddress).balanceOf(address(this)) > 200000000000000000) {
+        if (oracleLink.balanceOf(address(this)) > 200000000000000000) {
             // send 0.2 oracle link to dangermoon contract
-            IERC20(oracleLinkAddress).transfer(
-                dangermoonAddress,
-                200000000000000000
-            );
+            oracleLink.transfer(dangermoonAddress, 200000000000000000);
 
             // immediately swap BNB into dangermoon on pcs to trigger payout
             address[] memory bnbDangermoonPath = new address[](2);
