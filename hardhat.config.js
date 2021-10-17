@@ -1,4 +1,5 @@
 require("@nomiclabs/hardhat-waffle");
+require('hardhat-contract-sizer');
 
 const { ALCHEMY_API_KEY } = require('./secrets.json');
 
@@ -29,6 +30,12 @@ module.exports = {
       { version: "0.5.16", },
       { version: "0.6.12", },
     ],
+  },
+  contractSizer: {
+    alphaSort: true,
+    disambiguatePaths: false,
+    runOnCompile: true,
+    strict: true,
   },
   networks: {
     hardhat: {
