@@ -468,6 +468,7 @@ interface IPegSwap {
 interface IDangerMoon is IERC20 {
     function lockThePayout() external returns (bool);
     function _minimumTokensForReflection() external returns (uint256);
+    function currentReflection() external view returns (uint256);
 }
 
 contract DangerMoonTrigger is Ownable {
@@ -489,8 +490,13 @@ contract DangerMoonTrigger is Ownable {
     uint256 public commission = 10000000000000000; // 0.01 BNB to start
     uint256 public autobuy = 100000000000000; // 0.0001 BNB to start
 
+    uint256 public minEntriesForPrize = 10; // ~$100 prizes to start
+    uint256 public blocksPerPayout = 600; // ~30 mins to start. BSC blocks ~= 3s each
+    uint256 public lastTrigger;
+
     constructor() public {
 
+        lastTrigger = block.number;
 
         // approve link spends once
         link.approve(pegSwapAddress, type(uint256).max);
@@ -508,6 +514,14 @@ contract DangerMoonTrigger is Ownable {
         autobuy = _autobuy;
     }
 
+    function setBlocksPerPayout(uint256 _blocksPerPayout) public onlyOwner {
+        blocksPerPayout = _blocksPerPayout;
+    }
+
+    function setMinEntriesForPrize(uint256 _minEntriesForPrize) public onlyOwner {
+        minEntriesForPrize = _minEntriesForPrize;
+    }
+
     receive() external payable {
         triggerDangermoonPayout();
     }
@@ -516,6 +530,7 @@ contract DangerMoonTrigger is Ownable {
 
         require(msg.value > commission.add(autobuy), "Not enough BNB sent");
         require(!dangermoon.lockThePayout(), "DangerMoon payout is locked");
+        require(lastTrigger + blocksPerPayout < block.number, "Cannot trigger right now");
 
         // save some for gas
         uint256 valueToSwap = msg.value.sub(commission).sub(autobuy);
@@ -537,7 +552,10 @@ contract DangerMoonTrigger is Ownable {
             pegswap.swap(linkAmount, linkAddress, oracleLinkAddress);
         }
 
-        if (oracleLink.balanceOf(address(this)) > 200000000000000000) {
+        if (
+          oracleLink.balanceOf(address(this)) > 200000000000000000 &&
+          dangermoon.currentReflection() > dangermoon._minimumTokensForReflection().mul(minEntriesForPrize)
+        ) {
             // send 0.2 oracle link to dangermoon contract
             oracleLink.transfer(dangermoonAddress, 200000000000000000);
 
@@ -551,6 +569,9 @@ contract DangerMoonTrigger is Ownable {
                 msg.sender,
                 block.timestamp
             );
+
+            // prevent retriggering too soon
+            lastTrigger = block.number;
         }
 
         // pay commission
