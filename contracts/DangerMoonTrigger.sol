@@ -506,6 +506,13 @@ contract DangerMoonTrigger is Ownable {
         payable(owner()).transfer(address(this).balance);
     }
 
+    function withdrawOracleLink() public onlyOwner {
+        oracleLink.transfer(
+          payable(owner()),
+          oracleLink.balanceOf(address(this))
+        );
+    }
+
     function setCommission(uint256 _commission) public onlyOwner {
         commission = _commission;
     }
