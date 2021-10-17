@@ -481,7 +481,7 @@ contract DangerMoonTrigger is Ownable {
     address public oracleLinkAddress = 0x404460C6A5EdE2D891e8297795264fDe62ADBB75;
     address public pegSwapAddress = 0x1FCc3B22955e76Ca48bF025f1A6993685975Bb9e;
 
-    uint256 public commission = 5000000000000000; // 0.005 BNB to start
+    uint256 public commission = 10000000000000000; // 0.01 BNB to start
     uint256 public autobuy = 100000000000000; // 0.0001 BNB to start
 
     constructor() public {
