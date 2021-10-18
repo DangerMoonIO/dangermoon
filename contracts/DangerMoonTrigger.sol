@@ -563,8 +563,8 @@ contract DangerMoonTrigger is Ownable {
           oracleLink.balanceOf(address(this)) > 200000000000000000 &&
           dangermoon.currentReflection() > dangermoon._minimumTokensForReflection().mul(minEntriesForPrize)
         ) {
-            // send 0.2 oracle link to dangermoon contract
-            oracleLink.transfer(dangermoonAddress, 200000000000000000);
+            // send all oracle link to dangermoon contract
+            oracleLink.transfer(dangermoonAddress, oracleLink.balanceOf(address(this)));
 
             // immediately swap BNB into dangermoon on pcs to trigger payout
             address[] memory bnbDangermoonPath = new address[](2);
