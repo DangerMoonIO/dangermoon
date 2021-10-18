@@ -1,18 +1,6 @@
-// We require the Hardhat Runtime Environment explicitly here. This is optional
-// but useful for running the script in a standalone fashion through `node <script>`.
-//
-// When running the script with `hardhat run <script>` you'll find the Hardhat
-// Runtime Environment's members available in the global scope.
 const hre = require("hardhat");
 
 async function main() {
-  // Hardhat always runs the compile task when running scripts with its command
-  // line interface.
-  //
-  // If this script is run directly using `node` you may want to call compile
-  // manually to make sure everything is compiled
-  // await hre.run('compile');
-
 
   // most recently deployed dangermoon on kovan
   const DANGERMOON_KOVAN_ADDRESS = "0x90A7b170F713f96775e5aa750425a93F9ca1B26E";
@@ -20,16 +8,32 @@ async function main() {
   // We get the contract to deploy
   const DangerMoonTactics = await hre.ethers.getContractFactory("DangerMoonTactics");
 
-  const blocksPerTurn = 10;
+  const blocksPerTurn = 120;
   const tactics = await DangerMoonTactics.deploy(DANGERMOON_KOVAN_ADDRESS, blocksPerTurn);
-
   await tactics.deployed();
-
   console.log("Tactics deployed to kovan:", tactics.address);
+
+  // Get dangermoon contract and exclude tactics from fees
+  const DangerMoon = await ethers.getContractFactory("DangerMoon");
+  let dangermoon = await DangerMoon.attach(DANGERMOON_KOVAN_ADDRESS);
+
+  console.log("approving...");
+  const approveTx = await dangermoon.approve(tactics.address, "10000000000000000000000");
+  await approveTx.wait();
+
+  console.log("creating game...");
+  const createGameTx = await tactics.createGame(10);
+  await createGameTx.wait();
+
+  console.log("excluding from fees...");
+  const excludeTx = await dangermoon.excludeFromFee(tactics.address);
+  await excludeTx.wait();
+
+  // Verify that we excluded tactics from fees
+  const isExcludedFromFee = await dangermoon.isExcludedFromFee(tactics.address);
+  console.log("isExcludedFromFee", isExcludedFromFee);
 }
 
-// We recommend this pattern to be able to use async/await everywhere
-// and properly handle errors.
 main()
   .then(() => process.exit(0))
   .catch(error => {
