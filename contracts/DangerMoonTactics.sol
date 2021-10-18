@@ -4,17 +4,12 @@ pragma experimental ABIEncoderV2;
 // TODO
 // use safemath for all math
 
-// TODO
-// contracts/DangerMoonBattleground.sol:326:1: Warning: Contract code size exceeds 24576 bytes (a limit introduced in Spurious Dragon). This contract may not be deployable on mainnet. Consider enabling the optimizer (with a low "runs" value!), turning off revert strings, or using libraries.
-// contract DangerMoonBattleground is Ownable {
-// ^ (Relevant source part starts here and spans across multiple lines).
-
 // SPDX-License-Identifier: Unlicensed
 
 // TODO remove
 import "hardhat/console.sol";
 
-// DangerMoonBattleground is a solidity implementation of tank tactics.
+// DangerMoonTactics is a solidity implementation of tank tactics.
 // You can find the original rules at https://www.reddit.com/r/boardgames/comments/ot1ua2/tank_turn_tactics/
 
 library SafeMath {
@@ -331,7 +326,7 @@ interface IDangerMoon is IERC20 {
     function _minimumTokensForReflection() external returns (uint256);
 }
 
-contract DangerMoonBattleground is Ownable {
+contract DangerMoonTactics is Ownable {
 
     using SafeMath for uint256;
 

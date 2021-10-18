@@ -18,14 +18,14 @@ async function main() {
   const DANGERMOON_KOVAN_ADDRESS = "0x90A7b170F713f96775e5aa750425a93F9ca1B26E";
 
   // We get the contract to deploy
-  const DangerMoonBattleground = await hre.ethers.getContractFactory("DangerMoonBattleground");
+  const DangerMoonTactics = await hre.ethers.getContractFactory("DangerMoonTactics");
 
   const blocksPerTurn = 10;
-  const battleground = await DangerMoonBattleground.deploy(DANGERMOON_KOVAN_ADDRESS, blocksPerTurn);
+  const tactics = await DangerMoonTactics.deploy(DANGERMOON_KOVAN_ADDRESS, blocksPerTurn);
 
-  await battleground.deployed();
+  await tactics.deployed();
 
-  console.log("BattleGround deployed to kovan:", battleground.address);
+  console.log("Tactics deployed to kovan:", tactics.address);
 }
 
 // We recommend this pattern to be able to use async/await everywhere
