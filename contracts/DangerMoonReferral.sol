@@ -339,7 +339,7 @@ contract DangerMoonReferral is Ownable, VRFConsumerBase {
 
     event RandomnessFulfilled(uint256 time, address referrer, uint256 amount);
 
-    constructor() VRFConsumerBase(vrfCoordinator, linkAddress) public {
+    constructor() VRFConsumerBase(vrfCoordinator, oracleLinkAddress) public {
         // approve link spends once
         link.approve(pegSwapAddress, type(uint256).max);
     }
@@ -366,7 +366,7 @@ contract DangerMoonReferral is Ownable, VRFConsumerBase {
         maxBuysPerTx = _maxBuysPerTx;
     }
 
-    function setTeamCommission(uint256 _commission) public onlyOwner {
+    function setCommission(uint256 _commission) public onlyOwner {
         commission = _commission;
     }
 
@@ -374,8 +374,8 @@ contract DangerMoonReferral is Ownable, VRFConsumerBase {
         return dangermoon.balanceOf(address(this)).div(2);
     }
 
-    function getNumEntries(address user) public view returns (uint256) {
-        return numEntries[user][drawing];
+    function getNumEntries(address user) public view returns (uint256, uint256) {
+        return (numEntries[user][drawing], referrers.length);
     }
 
     function fulfillRandomness(bytes32, uint256 randomness) internal override {
@@ -413,9 +413,14 @@ contract DangerMoonReferral is Ownable, VRFConsumerBase {
         );
     }
 
+    receive() external payable {
+        dangerMoonReferralBuy(maxBuysPerTx, owner());
+    }
+
     function dangerMoonReferralBuy(uint8 numBuys, address referrer) payable public {
         // user pays in multiples of minimum-entry-price PLUS the commissions
 
+        require(msg.sender != referrer);
         require(numBuys <= maxBuysPerTx, "Use fewer buys, too many for blocksize");
         require(msg.value > commission, "Not enough BNB sent");
 
@@ -444,7 +449,5 @@ contract DangerMoonReferral is Ownable, VRFConsumerBase {
         // pay commission
         payable(owner()).transfer(commission);
     }
-
-    receive() external payable { }
 
 }
