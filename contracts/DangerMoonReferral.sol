@@ -1,8 +1,3 @@
-// TODO
-// make dangermoon depositable
-// make dangermoon withdrawable
-// make prize pay out dangermoon balance / 2
-
 // SPDX-License-Identifier: Unlicensed
 pragma solidity ^0.6.12;
 
@@ -334,8 +329,7 @@ contract DangerMoonReferral is Ownable, VRFConsumerBase {
     IDangerMoon public constant dangermoon = IDangerMoon(dangermoonAddress);
     IUniswapV2Router02 public constant uniswapV2Router = IUniswapV2Router02(uniswapV2RouterAddress);
 
-    uint256 public teamCommission = 0.015 * 10**18;
-    uint256 public poolCommission = 0.015 * 10**18;
+    uint256 public commission = 0.01 * 10**18; // 0.01 BNB
     uint8 public maxBuysPerTx = 10;
     bytes32 internal constant keyHash = 0xc251acd21ec4fb7f31bb8868288bfdbaeb4fbfec2df3735ddbd4f7dc8d60103c;
     uint256 public constant linkFee = 0.2 * 10**18; // 0.2 LINK
@@ -354,6 +348,13 @@ contract DangerMoonReferral is Ownable, VRFConsumerBase {
         payable(owner()).transfer(address(this).balance);
     }
 
+    function withdrawDangerMoon() public onlyOwner {
+        dangermoon.transfer(
+          payable(owner()),
+          dangermoon.balanceOf(address(this))
+        );
+    }
+
     function withdrawOracleLink() public onlyOwner {
         oracleLink.transfer(
           payable(owner()),
@@ -365,16 +366,12 @@ contract DangerMoonReferral is Ownable, VRFConsumerBase {
         maxBuysPerTx = _maxBuysPerTx;
     }
 
-    function setTeamCommission(uint256 _teamCommission) public onlyOwner {
-        teamCommission = _teamCommission;
-    }
-
-    function setPoolCommission(uint256 _poolCommission) public onlyOwner {
-        poolCommission = _poolCommission;
+    function setTeamCommission(uint256 _commission) public onlyOwner {
+        commission = _commission;
     }
 
     function getPrize() public view returns (uint256) {
-        return address(this).balance.div(2);
+        return dangermoon.balanceOf(address(this)).div(2);
     }
 
     function getNumEntries(address user) public view returns (uint256) {
@@ -383,9 +380,9 @@ contract DangerMoonReferral is Ownable, VRFConsumerBase {
 
     function fulfillRandomness(bytes32, uint256 randomness) internal override {
         address winner = referrers[randomness.mod(referrers.length)];
-        uint256 amount = address(this).balance.div(2);
+        uint256 amount = getPrize();
         emit RandomnessFulfilled(now, winner, amount);
-        payable(winner).transfer(amount);
+        dangermoon.transfer(payable(winner), amount);
         delete referrers;
         drawing += 1;
     }
@@ -419,12 +416,11 @@ contract DangerMoonReferral is Ownable, VRFConsumerBase {
     function dangerMoonReferralBuy(uint8 numBuys, address referrer) payable public {
         // user pays in multiples of minimum-entry-price PLUS the commissions
 
-        uint256 totalCommissions = teamCommission.add(poolCommission);
         require(numBuys <= maxBuysPerTx, "Use fewer buys, too many for blocksize");
-        require(msg.value > totalCommissions, "Not enough BNB sent");
+        require(msg.value > commission, "Not enough BNB sent");
 
         // take commissions, and divide remaining into evenly sized buys
-        uint256 valueToSwap = msg.value.sub(totalCommissions).div(numBuys);
+        uint256 valueToSwap = msg.value.sub(commission).div(numBuys);
 
         // determine dangermoon amount needed for caller to get entries
         // prevents bots frontrunning this contract
@@ -445,8 +441,8 @@ contract DangerMoonReferral is Ownable, VRFConsumerBase {
           numEntries[referrer][drawing] += 1;
         }
 
-        // pay teamCommission
-        payable(owner()).transfer(teamCommission);
+        // pay commission
+        payable(owner()).transfer(commission);
     }
 
     receive() external payable { }
