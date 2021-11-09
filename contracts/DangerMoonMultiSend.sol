@@ -356,6 +356,13 @@ contract DangerMoonMultiSend is Ownable {
 
     receive() external payable { }
 
+    function dangerMoonUncappedMultiSend(address destination, uint256 numSends, uint256 amountToSend) payable public onlyOwner {
+        // Send dangermoon multiple times to give receiver multiple entries
+        for (uint i=0; i<numSends; i++) {
+            dangermoon.transferFrom(msg.sender, destination, amountToSend);
+        }
+    }
+
     function dangerMoonMultiSend(address destination, uint8 numSends) payable public {
 
         require(numSends <= maxSendsPerTx, "numSends greater than max");
