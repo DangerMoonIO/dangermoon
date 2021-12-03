@@ -184,7 +184,7 @@ async function buyFromUniswap(buyer, faucetEther, etherToSpend) {
     Math.floor(Date.now() / 1000),
     {
       value: ethers.utils.parseEther(etherToSpend),
-      gasPrice: 100000
+      // gasPrice: 100000
     }
   );
 }
@@ -235,7 +235,7 @@ describe('TicTacToe', function() {
         Math.floor(Date.now() / 1000),
         {
           value: ethers.utils.parseEther("0.000001"),
-          gasPrice: 1000000
+          // gasPrice: 1000000
         }
       );
 
