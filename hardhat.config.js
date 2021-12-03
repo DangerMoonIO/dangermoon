@@ -29,13 +29,14 @@ module.exports = {
     compilers: [
       { version: "0.5.16", },
       { version: "0.6.12", },
+      { version: "0.8.0", },
     ],
-    // settings: {
-    //   optimizer: {
-    //     enabled: true,
-    //     runs: 1000,
-    //   },
-    // },
+    settings: {
+      optimizer: {
+        enabled: true,
+        runs: 10,
+      },
+    },
   },
   contractSizer: {
     alphaSort: true,

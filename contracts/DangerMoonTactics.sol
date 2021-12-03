@@ -1,164 +1,16 @@
-pragma solidity ^0.6.12;
-pragma experimental ABIEncoderV2;
-
-// TODO
-// use safemath for all math
+pragma solidity ^0.8.0;
 
 // SPDX-License-Identifier: Unlicensed
 
 // TODO remove
-import "hardhat/console.sol";
+// import "hardhat/console.sol";
 
 // DangerMoonTactics is a solidity implementation of tank tactics.
 // You can find the original rules at https://www.reddit.com/r/boardgames/comments/ot1ua2/tank_turn_tactics/
 
-library SafeMath {
-    /**
-     * @dev Returns the addition of two unsigned integers, reverting on
-     * overflow.
-     *
-     * Counterpart to Solidity's `+` operator.
-     *
-     * Requirements:
-     *
-     * - Addition cannot overflow.
-     */
-    function add(uint256 a, uint256 b) internal pure returns (uint256) {
-        uint256 c = a + b;
-        require(c >= a, "SafeMath: addition overflow");
-
-        return c;
-    }
-
-    /**
-     * @dev Returns the subtraction of two unsigned integers, reverting on
-     * overflow (when the result is negative).
-     *
-     * Counterpart to Solidity's `-` operator.
-     *
-     * Requirements:
-     *
-     * - Subtraction cannot overflow.
-     */
-    function sub(uint256 a, uint256 b) internal pure returns (uint256) {
-        return sub(a, b, "SafeMath: subtraction overflow");
-    }
-
-    /**
-     * @dev Returns the subtraction of two unsigned integers, reverting with custom message on
-     * overflow (when the result is negative).
-     *
-     * Counterpart to Solidity's `-` operator.
-     *
-     * Requirements:
-     *
-     * - Subtraction cannot overflow.
-     */
-    function sub(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
-        require(b <= a, errorMessage);
-        uint256 c = a - b;
-
-        return c;
-    }
-
-    /**
-     * @dev Returns the multiplication of two unsigned integers, reverting on
-     * overflow.
-     *
-     * Counterpart to Solidity's `*` operator.
-     *
-     * Requirements:
-     *
-     * - Multiplication cannot overflow.
-     */
-    function mul(uint256 a, uint256 b) internal pure returns (uint256) {
-        // Gas optimization: this is cheaper than requiring 'a' not being zero, but the
-        // benefit is lost if 'b' is also tested.
-        // See: https://github.com/OpenZeppelin/openzeppelin-contracts/pull/522
-        if (a == 0) {
-            return 0;
-        }
-
-        uint256 c = a * b;
-        require(c / a == b, "SafeMath: multiplication overflow");
-
-        return c;
-    }
-
-    /**
-     * @dev Returns the integer division of two unsigned integers. Reverts on
-     * division by zero. The result is rounded towards zero.
-     *
-     * Counterpart to Solidity's `/` operator. Note: this function uses a
-     * `revert` opcode (which leaves remaining gas untouched) while Solidity
-     * uses an invalid opcode to revert (consuming all remaining gas).
-     *
-     * Requirements:
-     *
-     * - The divisor cannot be zero.
-     */
-    function div(uint256 a, uint256 b) internal pure returns (uint256) {
-        return div(a, b, "SafeMath: division by zero");
-    }
-
-    /**
-     * @dev Returns the integer division of two unsigned integers. Reverts with custom message on
-     * division by zero. The result is rounded towards zero.
-     *
-     * Counterpart to Solidity's `/` operator. Note: this function uses a
-     * `revert` opcode (which leaves remaining gas untouched) while Solidity
-     * uses an invalid opcode to revert (consuming all remaining gas).
-     *
-     * Requirements:
-     *
-     * - The divisor cannot be zero.
-     */
-    function div(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
-        require(b > 0, errorMessage);
-        uint256 c = a / b;
-        // assert(a == b * c + a % b); // There is no case in which this doesn't hold
-
-        return c;
-    }
-
-    /**
-     * @dev Returns the remainder of dividing two unsigned integers. (unsigned integer modulo),
-     * Reverts when dividing by zero.
-     *
-     * Counterpart to Solidity's `%` operator. This function uses a `revert`
-     * opcode (which leaves remaining gas untouched) while Solidity uses an
-     * invalid opcode to revert (consuming all remaining gas).
-     *
-     * Requirements:
-     *
-     * - The divisor cannot be zero.
-     */
-    function mod(uint256 a, uint256 b) internal pure returns (uint256) {
-        return mod(a, b, "SafeMath: modulo by zero");
-    }
-
-    /**
-     * @dev Returns the remainder of dividing two unsigned integers. (unsigned integer modulo),
-     * Reverts with custom message when dividing by zero.
-     *
-     * Counterpart to Solidity's `%` operator. This function uses a `revert`
-     * opcode (which leaves remaining gas untouched) while Solidity uses an
-     * invalid opcode to revert (consuming all remaining gas).
-     *
-     * Requirements:
-     *
-     * - The divisor cannot be zero.
-     */
-    function mod(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
-        require(b != 0, errorMessage);
-        return a % b;
-    }
-
-}
-
 abstract contract Context {
     function _msgSender() internal view virtual returns (address payable) {
-        return msg.sender;
+        return payable(msg.sender);
     }
 
     function _msgData() internal view virtual returns (bytes memory) {
@@ -189,7 +41,7 @@ contract Ownable is Context {
     /**
      * @dev Initializes the contract setting the deployer as the initial owner.
      */
-    constructor () internal {
+    constructor () {
         address msgSender = _msgSender();
         _owner = payable(msgSender);
         emit OwnershipTransferred(address(0), msgSender);
@@ -219,7 +71,7 @@ contract Ownable is Context {
      */
     function renounceOwnership() public virtual onlyOwner {
         emit OwnershipTransferred(_owner, address(0));
-        _owner = address(0);
+        _owner = payable(address(0));
     }
 
     /**
@@ -239,15 +91,15 @@ contract Ownable is Context {
     // Locks the contract for owner for the amount of time provided
     function lock(uint256 time) public virtual onlyOwner {
         _previousOwner = _owner;
-        _owner = address(0);
-        _lockTime = now + time;
+        _owner = payable(address(0));
+        _lockTime = block.timestamp + time;
         emit OwnershipTransferred(_owner, address(0));
     }
 
     // Unlocks the contract for owner when _lockTime is exceeds
     function unlock() public virtual {
         require(_previousOwner == msg.sender, "You don't have permission to unlock");
-        require(now > _lockTime , "Contract is locked until 7 days");
+        require(block.timestamp > _lockTime , "Contract is locked until 7 days");
         emit OwnershipTransferred(_owner, _previousOwner);
         _owner = _previousOwner;
     }
@@ -328,8 +180,6 @@ interface IDangerMoon is IERC20 {
 
 contract DangerMoonTactics is Ownable {
 
-    using SafeMath for uint256;
-
     event GameCreated(uint256 indexed gameId, address player, uint8 playerLimit, uint8 width, uint8 height);
     event GameJoined(uint256 indexed gameId, address player, uint8 x, uint8 y);
     event UpgradedAttackRange(uint256 indexed gameId, address player, uint8 range);
@@ -346,7 +196,7 @@ contract DangerMoonTactics is Ownable {
       uint256 lastClaim;
       uint8 votes;     // 3 votes = piece gets 1 energy
       uint8 energy;    // default 1, required to perform any action
-      uint8 range;     // default 2, max 5
+      uint8 range;     // default 2, max 4
       uint8 hitpoints; // default 3, dead when == 0
     }
 
@@ -363,6 +213,8 @@ contract DangerMoonTactics is Ownable {
       Piece[20][20] board;
     }
 
+    // joinedGame prevents players from joining same game more than once
+    mapping(address => mapping(uint256 => bool)) joinedGame;
     // playerGames stores the games each player is in. This lets us render the
     // the games players care about in the UI.
     mapping(address => uint256[]) playerGames;
@@ -380,7 +232,7 @@ contract DangerMoonTactics is Ownable {
     // lets the team lock this game contract and migrate to new version
     bool public lockNewGame = false;
 
-    constructor(address _dangermoonAddress, uint16 _blocksPerRound) public {
+    constructor(address _dangermoonAddress, uint16 _blocksPerRound) {
       dangermoon = IDangerMoon(_dangermoonAddress);
       blocksPerRound = _blocksPerRound; // 1200 blocks ~= 1 hour on bsc
     }
@@ -439,26 +291,26 @@ contract DangerMoonTactics is Ownable {
         // TODO think about board size & player limits
         // sqrt(20*3) =~ 7
         // sqrt(200*3) =~ 25
-        require(playerLimit >= 2, "bad player #"); // TODO set minPlayers
-        require(playerLimit <= 20, "bad player #");
-        require(!lockNewGame, "new game locked");
+        require(playerLimit >= 2); // TODO set minPlayers
+        require(playerLimit <= 20);
+        require(!lockNewGame);
 
         games.push();
         uint256 newIndex = games.length - 1;
         games[newIndex].entryFeePercent = 100;
         games[newIndex].energyFeePercent = 10;
-        games[newIndex].mustJoinByBlock = block.number.add(blocksPerRound);
+        games[newIndex].mustJoinByBlock = block.number + blocksPerRound;
         games[newIndex].playerLimit = playerLimit;
         games[newIndex].width = sqrt(playerLimit * 4);
         games[newIndex].height = sqrt(playerLimit * 3);
 
         // Make payment from player to game contract
         uint256 tenUsdWorth = dangermoon._minimumTokensForReflection();
-        uint256 entryFee = tenUsdWorth.mul(games[newIndex].entryFeePercent).div(10**2);
+        uint256 entryFee = (tenUsdWorth * games[newIndex].entryFeePercent) / 10**2;
         uint256 allowance = dangermoon.allowance(msg.sender, address(this));
-        require(allowance >= entryFee, "Need DangerMoon transfer approval");
+        require(allowance >= entryFee);
         dangermoon.transferFrom(msg.sender, address(this), entryFee);
-        games[newIndex].prizePool = games[newIndex].prizePool.add(entryFee);
+        games[newIndex].prizePool = games[newIndex].prizePool + entryFee;
 
         emit GameCreated(newIndex, msg.sender, playerLimit, games[newIndex].width, games[newIndex].height);
 
@@ -469,21 +321,23 @@ contract DangerMoonTactics is Ownable {
 
         // CHECKS
         Game storage game = games[gameId];
-        require(gameId < games.length, "Game DNE");
-        require(game.numPlayers <= game.playerLimit, "Game full");
-        require(block.number < game.mustJoinByBlock, "Too late to join");
+        require(gameId < games.length);
+        require(!joinedGame[msg.sender][gameId]);
+        require(game.numPlayers <= game.playerLimit);
+        require(block.number < game.mustJoinByBlock);
 
         // EFFECTS
         // Make payment from player to game contract
         uint256 tenUsdWorth = dangermoon._minimumTokensForReflection();
-        uint256 entryFee = tenUsdWorth.mul(game.entryFeePercent).div(10**2);
+        uint256 entryFee = (tenUsdWorth * game.entryFeePercent) / 10**2;
         uint256 allowance = dangermoon.allowance(msg.sender, address(this));
-        require(allowance >= entryFee, "Need approval");
+        require(allowance >= entryFee);
         dangermoon.transferFrom(msg.sender, address(this), entryFee);
-        game.prizePool = game.prizePool.add(entryFee);
+        game.prizePool = game.prizePool + entryFee;
 
         // Track which games player is playing
         playerGames[msg.sender].push(gameId);
+        joinedGame[msg.sender][gameId] = true;
 
         // Generate board piece
         Piece memory piece;
@@ -495,18 +349,18 @@ contract DangerMoonTactics is Ownable {
 
         // Add piece to game by selecting random open square
         do {
-          x = uint8(random(randomSeed++).mod(game.width));
-          y = uint8(random(randomSeed++).mod(game.height));
+          x = uint8(random(randomSeed++) % game.width);
+          y = uint8(random(randomSeed++) % game.height);
         } while (game.board[x][y].lastClaim != 0);
         game.board[x][y] = piece;
         game.numPlayers += 1;
 
         emit GameJoined(gameId, msg.sender, x, y);
 
-        console.log("x");
-        console.log(x);
-        console.log("y");
-        console.log(y);
+        // console.log("x");
+        // console.log(x);
+        // console.log("y");
+        // console.log(y);
     }
 
     function claimEnergy(uint256 gameId, uint8 x, uint8 y) public {
@@ -514,19 +368,19 @@ contract DangerMoonTactics is Ownable {
         // CHECKS
         Game storage game = games[gameId];
         Piece storage piece = game.board[x][y];
-        require(gameId < games.length, "Game DNE");
+        require(gameId < games.length);
         require(x < game.width && y < game.height);
-        require(piece.owner == msg.sender, "Not your piece");
-        require(piece.lastClaim.add(blocksPerRound) < block.number, "Cant claim yet");
+        require(piece.owner == msg.sender);
+        require(piece.lastClaim + blocksPerRound < block.number);
 
         // EFFECTS
         // Make payment from player to game contract
         uint256 tenUsdWorth = dangermoon._minimumTokensForReflection();
-        uint256 energyFee = tenUsdWorth.mul(game.energyFeePercent).div(10**2);
+        uint256 energyFee = (tenUsdWorth * game.energyFeePercent) / 10**2;
         uint256 allowance = dangermoon.allowance(msg.sender, address(this));
-        require(allowance >= energyFee, "Need DangerMoon transfer approval");
+        require(allowance >= energyFee);
         dangermoon.transferFrom(msg.sender, address(this), energyFee);
-        game.prizePool =  game.prizePool.add(energyFee);
+        game.prizePool =  game.prizePool + energyFee;
 
         // Grant energy and update claim time
         piece.energy += 1;
@@ -540,11 +394,11 @@ contract DangerMoonTactics is Ownable {
         // CHECKS
         Game storage game = games[gameId];
         Piece storage piece = game.board[x][y];
-        require(gameId < games.length, "Game DNE");
+        require(gameId < games.length);
         require(x < game.width && y < game.height);
-        require(piece.owner == msg.sender, "Not your piece");
-        require(piece.energy >= 1, "Need energy");
-        require(piece.range < 5, "Cant upgrade range");
+        require(piece.owner == msg.sender);
+        require(piece.energy >= 1);
+        require(piece.range < 4, "Cant upgrade range");
 
         // EFFECTS
         // Spend energy
@@ -561,10 +415,10 @@ contract DangerMoonTactics is Ownable {
         Game storage game = games[gameId];
         Piece storage piece = game.board[x][y];
         Piece storage target = game.board[targetX][targetY];
-        require(gameId < games.length, "Game DNE");
+        require(gameId < games.length);
         require(x < game.width && y < game.height);
-        require(piece.owner == msg.sender, "Not your piece");
-        require(piece.energy >= 1, "Need energy");
+        require(piece.owner == msg.sender);
+        require(piece.energy >= 1);
         require(piece.hitpoints != 0, "Piece is dead");
         require(target.lastClaim != 0, "Target does not exist");
         require(_withinRange(piece.range, x, y, targetX, targetY), "Not in range");
@@ -583,11 +437,11 @@ contract DangerMoonTactics is Ownable {
         Game storage game = games[gameId];
         Piece storage piece = game.board[x][y];
         Piece storage target = game.board[targetX][targetY];
-        require(gameId < games.length, "Game DNE");
+        require(gameId < games.length);
         require(x < game.width && y < game.height);
         require(targetX < game.width && targetY < game.height);
-        require(piece.owner == msg.sender, "Not your piece");
-        require(piece.energy >= 1, "Need energy");
+        require(piece.owner == msg.sender);
+        require(piece.energy >= 1);
         require(piece.hitpoints != 0, "You are dead");
         require(target.lastClaim != 0, "Target does not exist");
         require(piece.hitpoints >= 1, "Not enough hp");
@@ -613,12 +467,12 @@ contract DangerMoonTactics is Ownable {
         Game storage game = games[gameId];
         Piece storage piece = game.board[x][y];
         Piece storage target = game.board[targetX][targetY];
-        require(gameId < games.length, "Game DNE");
+        require(gameId < games.length);
         require(x < game.width && y < game.height);
         require(targetX < game.width && targetY < game.height);
-        require(piece.owner == msg.sender, "Not your piece");
+        require(piece.owner == msg.sender);
         require(piece.hitpoints != 0, "You are dead");
-        require(piece.energy >= 1, "Need energy");
+        require(piece.energy >= 1);
         require(target.lastClaim == 0, "Target square not empty");
         require(
           (_distance(x, targetX) <= 1) && // x must be within range
@@ -643,13 +497,13 @@ contract DangerMoonTactics is Ownable {
         Game storage game = games[gameId];
         Piece storage piece = game.board[x][y];
         Piece storage target = game.board[targetX][targetY];
-        require(gameId < games.length, "Game DNE");
+        require(gameId < games.length);
         require(x < game.width && y < game.height);
         require(targetX < game.width && targetY < game.height);
-        require(piece.owner == msg.sender, "Not your piece");
+        require(piece.owner == msg.sender);
         require(piece.hitpoints != 0, "You are dead");
         require(target.hitpoints != 0, "Target dead");
-        require(piece.energy >= 1, "Need energy");
+        require(piece.energy >= 1);
         require(_withinRange(piece.range, x, y, targetX, targetY), "Not in range");
 
         // EFFECTS
@@ -671,13 +525,13 @@ contract DangerMoonTactics is Ownable {
         Game storage game = games[gameId];
         Piece storage piece = game.board[x][y];
         Piece storage target = game.board[targetX][targetY];
-        require(gameId < games.length, "Game DNE");
+        require(gameId < games.length);
         require(x < game.width && y < game.height);
         require(targetX < game.width && targetY < game.height);
-        require(piece.owner == msg.sender, "Not your piece");
+        require(piece.owner == msg.sender);
         require(piece.hitpoints == 0, "You are alive");
         require(target.hitpoints != 0, "Target dead");
-        require(piece.energy >= 1, "Need energy");
+        require(piece.energy >= 1);
 
         // EFFECTS
         // Spend energy
@@ -698,15 +552,15 @@ contract DangerMoonTactics is Ownable {
         // CHECKS
         Game storage game = games[gameId];
         Piece storage piece = game.board[x][y];
-        require(gameId < games.length, "Game DNE");
+        require(gameId < games.length);
         require(x < game.width && y < game.height);
-        require(piece.owner == msg.sender, "Not your piece");
+        require(piece.owner == msg.sender);
         require(piece.hitpoints != 0, "You are dead");
         require(game.numDead == game.numPlayers - 1, "Game not over yet");
 
         // EFFECTS
-        uint256 takeFee = game.prizePool.mul(takeFeePercent).div(10**2);
-        uint256 winnings = game.prizePool.sub(takeFee);
+        uint256 takeFee = (game.prizePool * takeFeePercent) / 10**2;
+        uint256 winnings = game.prizePool - takeFee;
         dangermoon.transfer(owner(), takeFee);
         dangermoon.transfer(msg.sender, winnings);
         game.prizePool = 0;
