@@ -1,7 +1,7 @@
 require("@nomiclabs/hardhat-waffle");
 require('hardhat-contract-sizer');
 
-const { ALCHEMY_API_KEY } = require('./secrets.json');
+const { ALCHEMY_API_KEY, BSC_MAINNET_URL } = require('./secrets.json');
 
 if (process.env.PKEY === undefined) {
   console.error("Please provide PKEY env")
@@ -34,7 +34,7 @@ module.exports = {
     settings: {
       optimizer: {
         enabled: true,
-        runs: 10,
+        runs: 2000,
       },
     },
   },
@@ -57,15 +57,15 @@ module.exports = {
       accounts: [`0x${process.env.PKEY}`]
     },
     mainnet: {
-      url: "https://bsc-dataseed.binance.org/",
+      url: BSC_MAINNET_URL || "https://bsc-dataseed.binance.org/",
       chainId: 56,
-      gasPrice: 5000000000,
+      // gasPrice: 5000000000,
       accounts: [`0x${process.env.PKEY}`]
     },
     testnet: {
       url: "https://data-seed-prebsc-1-s1.binance.org:8545",
       chainId: 97,
-      gasPrice: 5000000000,
+      // gasPrice: 5000000000,
       accounts: [`0x${process.env.PKEY}`]
     }
   }

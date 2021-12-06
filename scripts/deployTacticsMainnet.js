@@ -22,8 +22,12 @@ async function main() {
   await approveTx.wait();
 
   console.log("creating game...");
-  const createGameTx = await tactics.createGame(10);
+  const createGameTx = await tactics.createGame(20);
   await createGameTx.wait();
+
+  console.log("locking new games...");
+  const lockGameTx = await tactics.setLockNewGame(true);
+  await lockGameTx.wait();
 
   console.log("excluding from fees...");
   const excludeTx = await dangermoon.excludeFromFee(tactics.address);

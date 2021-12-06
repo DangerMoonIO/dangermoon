@@ -248,6 +248,8 @@ describe('TicTacToe', function() {
       // Get and deploy tactics
       const DangerMoonTactics = await ethers.getContractFactory("DangerMoonTactics");
       tactics = await DangerMoonTactics.deploy(dangermoon.address, 10);
+      console.log(tactics.deployTransaction.gasPrice.toString());
+      console.log(tactics.deployTransaction.gasLimit.toString());
 
       // ensures playing does not ruin entries
       await dangermoon.excludeFromFee(tactics.address);

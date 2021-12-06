@@ -2,8 +2,7 @@ pragma solidity ^0.8.0;
 
 // SPDX-License-Identifier: Unlicensed
 
-// TODO remove
-// import "hardhat/console.sol";
+import "hardhat/console.sol";
 
 // DangerMoonTactics is a solidity implementation of tank tactics.
 // You can find the original rules at https://www.reddit.com/r/boardgames/comments/ot1ua2/tank_turn_tactics/
@@ -178,7 +177,41 @@ interface IDangerMoon is IERC20 {
     function _minimumTokensForReflection() external returns (uint256);
 }
 
-contract DangerMoonTactics is Ownable {
+abstract contract Utils {
+
+    function _random(uint256 seed) internal view returns (uint256) {
+        return uint256(keccak256(abi.encodePacked(seed, block.difficulty, block.timestamp, block.number)));
+    }
+
+    function _sqrt(uint8 y) internal pure returns (uint8 z) {
+        if (y > 3) {
+            z = y;
+            uint8 x = y / 2 + 1;
+            while (x < z) {
+                z = x;
+                x = (y / x + x) / 2;
+            }
+        } else if (y != 0) {
+            z = 1;
+        }
+    }
+
+
+    function _withinRange(uint8 range, uint8 x, uint8 y, uint8 targetX, uint8 targetY) internal pure returns (bool) {
+        bool inRangeX = _distance(x, targetX) <= range;
+        bool inRangeY = _distance(y, targetY) <= range;
+        return (inRangeX && inRangeY);
+    }
+
+    function _distance(uint8 a, uint8 b) internal pure returns (uint8) {
+        if (a > b) {
+            return a - b;
+        }
+        return b - a;
+    }
+}
+
+contract DangerMoonTactics is Ownable, Utils {
 
     event GameCreated(uint256 indexed gameId, address player, uint8 playerLimit, uint8 width, uint8 height);
     event GameJoined(uint256 indexed gameId, address player, uint8 x, uint8 y);
@@ -213,66 +246,47 @@ contract DangerMoonTactics is Ownable {
       Piece[20][20] board;
     }
 
+    // dangermoon address (for transfers, reading the current $10 value, etc)
+    IDangerMoon public dangermoon;
+    // improves randomness
+    uint256 private randomSeed = 0;
+    // determines number of seconds per in-game turn
+    uint16 public blocksPerRound;
+    // dangermoon team's cut of prize pool
+    uint8 public constant takeFeePercent = 10;
+    // lets the team lock this game contract and migrate to new version
+    bool public lockNewGame = false;
+
     // joinedGame prevents players from joining same game more than once
     mapping(address => mapping(uint256 => bool)) joinedGame;
+
     // playerGames stores the games each player is in. This lets us render the
     // the games players care about in the UI.
     mapping(address => uint256[]) playerGames;
+
     // games stores all the games, including finished and still-running ones
     // It is possible to iterate over all games by going from `0` to `games.length`.
     Game[] public games;
-    // dangermoon address (for transfers, reading the current $10 value, etc)
-    IDangerMoon public dangermoon;
-    // determines number of seconds per in-game turn
-    uint16 public blocksPerRound;
-    // improves randomness in testing
-    uint256 private randomSeed = 0;
-    // dangermoon team's cut of prize pool
-    uint8 public takeFeePercent = 10;
-    // lets the team lock this game contract and migrate to new version
-    bool public lockNewGame = false;
 
     constructor(address _dangermoonAddress, uint16 _blocksPerRound) {
       dangermoon = IDangerMoon(_dangermoonAddress);
       blocksPerRound = _blocksPerRound; // 1200 blocks ~= 1 hour on bsc
     }
 
-    function random(uint256 seed) private view returns (uint256) {
-        return uint256(keccak256(abi.encodePacked(seed, block.difficulty, block.timestamp, block.number)));
-    }
-
-    function sqrt(uint8 y) internal pure returns (uint8 z) {
-        if (y > 3) {
-            z = y;
-            uint8 x = y / 2 + 1;
-            while (x < z) {
-                z = x;
-                x = (y / x + x) / 2;
-            }
-        } else if (y != 0) {
-            z = 1;
-        }
-    }
-
     function setLockNewGame(bool _lockNewGame) public onlyOwner() {
         lockNewGame = _lockNewGame;
     }
 
-    function setTakeFeePercent(uint8 _takeFeePercent) public onlyOwner() {
-        takeFeePercent = _takeFeePercent;
-    }
+    // function setTakeFeePercent(uint8 _takeFeePercent) public onlyOwner() {
+    //     takeFeePercent = _takeFeePercent;
+    // }
 
-    function setBlocksPerRound(uint8 _blocksPerRound) public onlyOwner() {
-        blocksPerRound = _blocksPerRound;
-    }
+    // function setBlocksPerRound(uint8 _blocksPerRound) public onlyOwner() {
+    //     blocksPerRound = _blocksPerRound;
+    // }
 
-    function withdrawDangerMoon(uint256 amount) public onlyOwner() {
-        if (amount == 0) {
-            amount = dangermoon.balanceOf(address(this));
-        }
-        if (amount > 0) {
-            dangermoon.transfer(owner(), amount);
-        }
+    function withdrawDangerMoon() public onlyOwner() {
+        dangermoon.transfer(owner(), dangermoon.balanceOf(address(this)));
     }
 
     function getPlayerGames() public view returns (uint256[] memory) {
@@ -287,13 +301,23 @@ contract DangerMoonTactics is Ownable {
         return games[gameId].board;
     }
 
-    function createGame(uint8 playerLimit) public returns (uint256 gameId) {
-        // TODO think about board size & player limits
-        // sqrt(20*3) =~ 7
-        // sqrt(200*3) =~ 25
-        require(playerLimit >= 2); // TODO set minPlayers
-        require(playerLimit <= 20);
+    function commonChecks(uint256 gameId, uint8 x, uint8 y) private view returns (bool) {
+        require(gameId < games.length);
+        require(x < games[gameId].width && y < games[gameId].height);
+        require(games[gameId].board[x][y].owner == msg.sender);
+        return true;
+    }
+
+    function canCreateGame() public view returns (bool) {
         require(!lockNewGame);
+        return true;
+    }
+
+    function createGame(uint8 playerLimit) public returns (uint256 gameId) {
+
+        require(playerLimit >= 2);
+        require(playerLimit <= 20);
+        require(canCreateGame());
 
         games.push();
         uint256 newIndex = games.length - 1;
@@ -301,8 +325,8 @@ contract DangerMoonTactics is Ownable {
         games[newIndex].energyFeePercent = 10;
         games[newIndex].mustJoinByBlock = block.number + blocksPerRound;
         games[newIndex].playerLimit = playerLimit;
-        games[newIndex].width = sqrt(playerLimit * 4);
-        games[newIndex].height = sqrt(playerLimit * 3);
+        games[newIndex].width = _sqrt(playerLimit * 4);
+        games[newIndex].height = _sqrt(playerLimit * 3);
 
         // Make payment from player to game contract
         uint256 tenUsdWorth = dangermoon._minimumTokensForReflection();
@@ -317,14 +341,20 @@ contract DangerMoonTactics is Ownable {
         return newIndex;
     }
 
-    function joinGame(uint256 gameId) public returns (uint8 x, uint8 y) {
-
-        // CHECKS
+    function canJoinGame(uint256 gameId) public view returns (bool) {
         Game storage game = games[gameId];
         require(gameId < games.length);
         require(!joinedGame[msg.sender][gameId]);
         require(game.numPlayers <= game.playerLimit);
         require(block.number < game.mustJoinByBlock);
+        return true;
+    }
+
+    function joinGame(uint256 gameId) public returns (uint8 x, uint8 y) {
+
+        // CHECKS
+        require(canJoinGame(gameId));
+        Game storage game = games[gameId];
 
         // EFFECTS
         // Make payment from player to game contract
@@ -342,36 +372,41 @@ contract DangerMoonTactics is Ownable {
         // Generate board piece
         Piece memory piece;
         piece.owner = msg.sender;
-        piece.lastClaim = block.number;
-        piece.energy = 1;
+        // piece.lastClaim = 0;
+        // piece.energy = 0;
         piece.range = 2;
         piece.hitpoints = 3;
 
         // Add piece to game by selecting random open square
         do {
-          x = uint8(random(randomSeed++) % game.width);
-          y = uint8(random(randomSeed++) % game.height);
+          x = uint8(_random(randomSeed++) % game.width);
+          y = uint8(_random(randomSeed++) % game.height);
         } while (game.board[x][y].lastClaim != 0);
         game.board[x][y] = piece;
         game.numPlayers += 1;
 
         emit GameJoined(gameId, msg.sender, x, y);
 
-        // console.log("x");
-        // console.log(x);
-        // console.log("y");
-        // console.log(y);
+        console.log("x");
+        console.log(x);
+        console.log("y");
+        console.log(y);
+    }
+
+    function canClaimEnergy(uint256 gameId, uint8 x, uint8 y) public view returns (bool) {
+        Game storage game = games[gameId];
+        Piece storage piece = game.board[x][y];
+        require(commonChecks(gameId, x, y));
+        require(piece.lastClaim + blocksPerRound < block.number);
+        return true;
     }
 
     function claimEnergy(uint256 gameId, uint8 x, uint8 y) public {
 
         // CHECKS
+        require(canClaimEnergy(gameId, x, y));
         Game storage game = games[gameId];
         Piece storage piece = game.board[x][y];
-        require(gameId < games.length);
-        require(x < game.width && y < game.height);
-        require(piece.owner == msg.sender);
-        require(piece.lastClaim + blocksPerRound < block.number);
 
         // EFFECTS
         // Make payment from player to game contract
@@ -389,16 +424,21 @@ contract DangerMoonTactics is Ownable {
         emit ClaimedEnergy(gameId, msg.sender, x, y);
     }
 
+    function canUpgradeAttackRange(uint256 gameId, uint8 x, uint8 y) public view returns (bool) {
+        Game storage game = games[gameId];
+        Piece storage piece = game.board[x][y];
+        require(commonChecks(gameId, x, y));
+        require(piece.energy >= 1);
+        require(piece.range < 4); // "Cant upgrade range"
+        return true;
+    }
+
     function upgradeAttackRange(uint256 gameId, uint8 x, uint8 y) public {
 
         // CHECKS
+        require(canUpgradeAttackRange(gameId, x, y));
         Game storage game = games[gameId];
         Piece storage piece = game.board[x][y];
-        require(gameId < games.length);
-        require(x < game.width && y < game.height);
-        require(piece.owner == msg.sender);
-        require(piece.energy >= 1);
-        require(piece.range < 4, "Cant upgrade range");
 
         // EFFECTS
         // Spend energy
@@ -409,19 +449,25 @@ contract DangerMoonTactics is Ownable {
         emit UpgradedAttackRange(gameId, msg.sender, piece.range);
     }
 
-    function grantEnergy(uint256 gameId, uint8 x, uint8 y, uint8 targetX, uint8 targetY) public {
-
-        // CHECKS
+    function canGrantEnergy(uint256 gameId, uint8 x, uint8 y, uint8 targetX, uint8 targetY) public view returns (bool) {
         Game storage game = games[gameId];
         Piece storage piece = game.board[x][y];
         Piece storage target = game.board[targetX][targetY];
-        require(gameId < games.length);
-        require(x < game.width && y < game.height);
-        require(piece.owner == msg.sender);
+        require(commonChecks(gameId, x, y));
         require(piece.energy >= 1);
-        require(piece.hitpoints != 0, "Piece is dead");
-        require(target.lastClaim != 0, "Target does not exist");
-        require(_withinRange(piece.range, x, y, targetX, targetY), "Not in range");
+        require(piece.hitpoints != 0); //, "Piece is dead"
+        require(target.lastClaim != 0); //, "Target does not exist"
+        require(_withinRange(piece.range, x, y, targetX, targetY)); //, "Not in range"
+        return true;
+    }
+
+    function grantEnergy(uint256 gameId, uint8 x, uint8 y, uint8 targetX, uint8 targetY) public {
+
+        // CHECKS
+        require(canGrantEnergy(gameId, x, y, targetX, targetY));
+        Game storage game = games[gameId];
+        Piece storage piece = game.board[x][y];
+        Piece storage target = game.board[targetX][targetY];
 
         // EFFECTS
         // Reallocate 1 energy to the piece on targetX,targetY
@@ -431,21 +477,27 @@ contract DangerMoonTactics is Ownable {
         emit EnergyGranted(gameId, msg.sender, x, y, targetX, targetY);
     }
 
-    function grantHitpoint(uint256 gameId, uint8 x, uint8 y, uint8 targetX, uint8 targetY) public {
-
-        // CHECKS
+    function canGrantHitpoint(uint256 gameId, uint8 x, uint8 y, uint8 targetX, uint8 targetY) public view returns (bool) {
         Game storage game = games[gameId];
         Piece storage piece = game.board[x][y];
         Piece storage target = game.board[targetX][targetY];
-        require(gameId < games.length);
-        require(x < game.width && y < game.height);
+        require(commonChecks(gameId, x, y));
         require(targetX < game.width && targetY < game.height);
-        require(piece.owner == msg.sender);
         require(piece.energy >= 1);
-        require(piece.hitpoints != 0, "You are dead");
-        require(target.lastClaim != 0, "Target does not exist");
-        require(piece.hitpoints >= 1, "Not enough hp");
-        require(_withinRange(piece.range, x, y, targetX, targetY), "Not in range");
+        require(piece.hitpoints != 0); //, "You are dead"
+        require(target.lastClaim != 0); //, "Target does not exist"
+        require(piece.hitpoints >= 1); //, "Not enough hp"
+        require(_withinRange(piece.range, x, y, targetX, targetY)); //, "Not in range"
+        return true;
+    }
+
+    function grantHitpoint(uint256 gameId, uint8 x, uint8 y, uint8 targetX, uint8 targetY) public {
+
+        // CHECKS
+        require(canGrantHitpoint(gameId, x, y, targetX, targetY));
+        Game storage game = games[gameId];
+        Piece storage piece = game.board[x][y];
+        Piece storage target = game.board[targetX][targetY];
 
         // EFFECTS
         // Keep track of numDead if target is being revived
@@ -461,50 +513,60 @@ contract DangerMoonTactics is Ownable {
         emit HitpointGranted(gameId, msg.sender, x, y, targetX, targetY);
     }
 
-    function move(uint256 gameId, uint8 x, uint8 y, uint8 targetX, uint8 targetY) public {
-
-        // CHECKS
+    function canMove(uint256 gameId, uint8 x, uint8 y, uint8 targetX, uint8 targetY) public view returns (bool) {
         Game storage game = games[gameId];
         Piece storage piece = game.board[x][y];
         Piece storage target = game.board[targetX][targetY];
-        require(gameId < games.length);
-        require(x < game.width && y < game.height);
+        require(commonChecks(gameId, x, y));
         require(targetX < game.width && targetY < game.height);
-        require(piece.owner == msg.sender);
-        require(piece.hitpoints != 0, "You are dead");
+        require(piece.hitpoints != 0); //, "You are dead"
         require(piece.energy >= 1);
-        require(target.lastClaim == 0, "Target square not empty");
+        require(target.lastClaim == 0); //, "Target square not empty"
         require(
           (_distance(x, targetX) <= 1) && // x must be within range
           (_distance(y, targetY) <= 1) && // y must be within range
-          (x != targetX || y != targetY), // x or y position needs to change
-          "Invalid destination"
+          (x != targetX || y != targetY) // x or y position needs to change
+          // "Invalid destination"
         );
+        return true;
+    }
+
+    function move(uint256 gameId, uint8 x, uint8 y, uint8 targetX, uint8 targetY) public {
+
+        // CHECKS
+        require(canMove(gameId, x, y, targetX, targetY));
+        Game storage game = games[gameId];
+        Piece storage piece = game.board[x][y];
 
         // EFFECTS
         // Spend energy
         piece.energy -= 1;
-        // Game storage piece = games[gameId].board[x][y];
-        game.board[targetX][targetY] = piece; // TODO check
+        game.board[targetX][targetY] = piece;
         delete games[gameId].board[x][y];
 
         emit PlayerMoved(gameId, msg.sender, x, y, targetX, targetY);
     }
 
-    function attack(uint256 gameId, uint8 x, uint8 y, uint8 targetX, uint8 targetY) public {
-
-        // CHECKS
+    function canAttack(uint256 gameId, uint8 x, uint8 y, uint8 targetX, uint8 targetY) public view returns (bool) {
         Game storage game = games[gameId];
         Piece storage piece = game.board[x][y];
         Piece storage target = game.board[targetX][targetY];
-        require(gameId < games.length);
-        require(x < game.width && y < game.height);
+        require(commonChecks(gameId, x, y));
         require(targetX < game.width && targetY < game.height);
-        require(piece.owner == msg.sender);
-        require(piece.hitpoints != 0, "You are dead");
-        require(target.hitpoints != 0, "Target dead");
+        require(piece.hitpoints != 0); //, "You are dead"
+        require(target.hitpoints != 0); //, "Target dead"
         require(piece.energy >= 1);
-        require(_withinRange(piece.range, x, y, targetX, targetY), "Not in range");
+        require(_withinRange(piece.range, x, y, targetX, targetY)); //, "Not in range"
+        return true;
+    }
+
+    function attack(uint256 gameId, uint8 x, uint8 y, uint8 targetX, uint8 targetY) public {
+
+        // CHECKS
+        require(canMove(gameId, x, y, targetX, targetY));
+        Game storage game = games[gameId];
+        Piece storage piece = game.board[x][y];
+        Piece storage target = game.board[targetX][targetY];
 
         // EFFECTS
         // Spend energy
@@ -519,19 +581,25 @@ contract DangerMoonTactics is Ownable {
         emit PlayerAttacked(gameId, msg.sender, x, y, targetX, targetY);
     }
 
-    function juryVote(uint256 gameId, uint8 x, uint8 y, uint8 targetX, uint8 targetY) public {
-
-        // CHECKS
+    function canJuryVote(uint256 gameId, uint8 x, uint8 y, uint8 targetX, uint8 targetY) public view returns (bool) {
         Game storage game = games[gameId];
         Piece storage piece = game.board[x][y];
         Piece storage target = game.board[targetX][targetY];
-        require(gameId < games.length);
-        require(x < game.width && y < game.height);
+        require(commonChecks(gameId, x, y));
         require(targetX < game.width && targetY < game.height);
-        require(piece.owner == msg.sender);
-        require(piece.hitpoints == 0, "You are alive");
-        require(target.hitpoints != 0, "Target dead");
+        require(piece.hitpoints == 0); //, "You are alive"
+        require(target.hitpoints != 0); //, "Target dead"
         require(piece.energy >= 1);
+        return true;
+    }
+
+    function juryVote(uint256 gameId, uint8 x, uint8 y, uint8 targetX, uint8 targetY) public {
+
+        // CHECKS
+        require(canJuryVote(gameId, x, y, targetX, targetY));
+        Game storage game = games[gameId];
+        Piece storage piece = game.board[x][y];
+        Piece storage target = game.board[targetX][targetY];
 
         // EFFECTS
         // Spend energy
@@ -547,16 +615,19 @@ contract DangerMoonTactics is Ownable {
         emit JuryVoted(gameId, msg.sender, x, y, targetX, targetY);
     }
 
-    function claimWinnings(uint256 gameId, uint8 x, uint8 y) public {
-
-        // CHECKS
+    function canClaimWinnings(uint256 gameId, uint8 x, uint8 y) public view returns (bool) {
         Game storage game = games[gameId];
         Piece storage piece = game.board[x][y];
-        require(gameId < games.length);
-        require(x < game.width && y < game.height);
-        require(piece.owner == msg.sender);
-        require(piece.hitpoints != 0, "You are dead");
-        require(game.numDead == game.numPlayers - 1, "Game not over yet");
+        require(commonChecks(gameId, x, y));
+        require(piece.hitpoints != 0); //, "You are dead"
+        require(game.numDead == game.numPlayers - 1); //, "Game not over yet"
+        return true;
+    }
+
+    function claimWinnings(uint256 gameId, uint8 x, uint8 y) public {
+
+        require(canClaimWinnings(gameId, x, y));
+        Game storage game = games[gameId];
 
         // EFFECTS
         uint256 takeFee = (game.prizePool * takeFeePercent) / 10**2;
@@ -567,18 +638,4 @@ contract DangerMoonTactics is Ownable {
 
         emit WinningsClaimed(gameId, msg.sender, x, y, winnings);
     }
-
-    function _withinRange(uint8 range, uint8 x, uint8 y, uint8 targetX, uint8 targetY) private pure returns (bool) {
-        bool inRangeX = _distance(x, targetX) <= range;
-        bool inRangeY = _distance(y, targetY) <= range;
-        return (inRangeX && inRangeY);
-    }
-
-    function _distance(uint8 a, uint8 b) private pure returns (uint8) {
-        if (a > b) {
-            return a - b;
-        }
-        return b - a;
-    }
-
 }
