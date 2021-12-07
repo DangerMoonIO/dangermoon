@@ -279,8 +279,13 @@ contract DangerMoonTactics is Ownable, Utils {
         takeFeePercent = _takeFeePercent;
     }
 
-    function withdrawDangerMoon() public onlyOwner() {
-        dangermoon.transfer(owner(), dangermoon.balanceOf(address(this)));
+    function withdrawDangerMoon(uint256 amount) public onlyOwner() {
+        if (amount == 0) {
+            amount = dangermoon.balanceOf(address(this));
+        }
+        if (amount > 0) {
+            dangermoon.transfer(owner(), amount);
+        }
     }
 
     function getPlayerGames() public view returns (uint256[] memory) {
