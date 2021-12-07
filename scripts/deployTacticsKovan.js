@@ -8,8 +8,7 @@ async function main() {
   // We get the contract to deploy
   const DangerMoonTactics = await hre.ethers.getContractFactory("DangerMoonTactics");
 
-  const blocksPerTurn = 120;
-  const tactics = await DangerMoonTactics.deploy(DANGERMOON_KOVAN_ADDRESS, blocksPerTurn);
+  const tactics = await DangerMoonTactics.deploy(DANGERMOON_KOVAN_ADDRESS);
   await tactics.deployed();
   console.log("Tactics deployed to kovan:", tactics.address);
 
@@ -22,7 +21,10 @@ async function main() {
   await approveTx.wait();
 
   console.log("creating game...");
-  const createGameTx = await tactics.createGame(10);
+  const blocksPerTurn = 120;    // 6 mins at 3s/block
+  const energyFeePercent = 100; // ~$10
+  const entryFeePercent = 10;   // ~$1
+  const createGameTx = await tactics.createGame(20, blocksPerTurn, energyFeePercent, entryFeePercent);
   await createGameTx.wait();
 
   console.log("excluding from fees...");

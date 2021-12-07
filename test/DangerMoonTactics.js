@@ -189,7 +189,7 @@ async function buyFromUniswap(buyer, faucetEther, etherToSpend) {
   );
 }
 
-describe('TicTacToe', function() {
+describe('Tactics', function() {
     beforeEach(async () => {
       // NOTE p1 = "player 1" etc
       [owner, p1, p2, p3, p4, charity, marketing] = await ethers.getSigners();
@@ -247,9 +247,7 @@ describe('TicTacToe', function() {
 
       // Get and deploy tactics
       const DangerMoonTactics = await ethers.getContractFactory("DangerMoonTactics");
-      tactics = await DangerMoonTactics.deploy(dangermoon.address, 10);
-      console.log(tactics.deployTransaction.gasPrice.toString());
-      console.log(tactics.deployTransaction.gasLimit.toString());
+      tactics = await DangerMoonTactics.deploy(dangermoon.address);
 
       // ensures playing does not ruin entries
       await dangermoon.excludeFromFee(tactics.address);
@@ -257,7 +255,7 @@ describe('TicTacToe', function() {
 
   	it("should let players createGame and joinGame", async () => {
       await dangermoon.connect(p1).approve(tactics.address, "100000000000000000");
-      await expect(tactics.connect(p1).createGame(5)).to.emit(tactics, "GameCreated");
+      await expect(tactics.connect(p1).createGame(5, 10, 100, 10)).to.emit(tactics, "GameCreated");
 
       await dangermoon.connect(p1).approve(tactics.address, "2000000000000000000");
       await expect(tactics.connect(p1).joinGame(0)).to.emit(tactics, "GameJoined");
@@ -274,96 +272,94 @@ describe('TicTacToe', function() {
       // await printGameBoard(0);
     });
 
-    xit("should let players claimEnergy, attack, and juryVote", async () => {
+    it("should let players claimEnergy, attack, and juryVote", async () => {
       await dangermoon.connect(p1).approve(tactics.address, "100000000000000000");
-      await expect(tactics.connect(p1).createGame(5)).to.emit(tactics, "GameCreated");
+      await expect(tactics.connect(p1).createGame(5, 10, 100, 10)).to.emit(tactics, "GameCreated");
 
       await dangermoon.connect(p1).approve(tactics.address, "2000000000000000000");
-      await expect(tactics.connect(p1).joinGame(0)).to.emit(tactics, "GameJoined").withArgs(0, p1.address, 0, 1);
-      // await tactics.connect(p1).joinGame(0);
-      // await printGameBoard(0);
+      await expect(tactics.connect(p1).joinGame(0)).to.emit(tactics, "GameJoined").withArgs(0, p1.address, 1, 0);
       await dangermoon.connect(p2).approve(tactics.address, "1000000000000000000");
       await expect(tactics.connect(p2).joinGame(0)).to.emit(tactics, "GameJoined").withArgs(0, p2.address, 2, 1);
-      // await tactics.connect(p2).joinGame(0);
-      // await printGameBoard(0);
       await dangermoon.connect(p3).approve(tactics.address, "1000000000000000000");
-      await expect(tactics.connect(p3).joinGame(0)).to.emit(tactics, "GameJoined").withArgs(0, p3.address, 1, 0);
-      // await tactics.connect(p3).joinGame(0);
-      // await printGameBoard(0);
+      await expect(tactics.connect(p3).joinGame(0)).to.emit(tactics, "GameJoined").withArgs(0, p3.address, 0, 1);
       await dangermoon.connect(p4).approve(tactics.address, "1000000000000000000");
       await expect(tactics.connect(p4).joinGame(0)).to.emit(tactics, "GameJoined").withArgs(0, p4.address, 1, 1);
-      // await tactics.connect(p4).joinGame(0);
-      // await printGameBoard(0);
 
-      // await printGameBoard(0);
-      await dangermoon.connect(p1).approve(tactics.address, "100000000000000000");
-      await dangermoon.connect(p1).approve(tactics.address, "100000000000000000");
-      await dangermoon.connect(p1).approve(tactics.address, "100000000000000000");
-      await tactics.connect(p1).claimEnergy(0, 0, 1);
+      await mineTenBlocks();
+      await tactics.connect(p1).claimEnergy(0, 1, 0);
+      await tactics.connect(p2).claimEnergy(0, 2, 1);
+      await tactics.connect(p3).claimEnergy(0, 0, 1);
+      await tactics.connect(p4).claimEnergy(0, 1, 1);
 
       // await printGameBoard(0);
 
-      await tactics.connect(p1).attack(0, 0, 1, 2, 1);
-      await tactics.connect(p1).attack(0, 0, 1, 2, 1);
-      await tactics.connect(p1).attack(0, 0, 1, 2, 1);
+      await tactics.connect(p1).attack(0, 1, 0, 1, 1);
+      await tactics.connect(p2).attack(0, 2, 1, 1, 1);
+      await tactics.connect(p3).attack(0, 0, 1, 1, 1);
       await expect(tactics.connect(p4).attack(0, 1, 1, 3, 3))
         .to.be.reverted;
 
       // await printGameBoard(0);
-      await tactics.connect(p2).juryVote(0, 1, 0, 2, 0);
+      await tactics.connect(p4).juryVote(0, 1, 1, 0, 1);
 
     });
 
     it("should prevent joining after round ends", async () => {
       // create a game
       await dangermoon.connect(p1).approve(tactics.address, "100000000000000000");
-      await expect(tactics.connect(p1).createGame(5)).to.emit(tactics, "GameCreated");
+      await expect(tactics.connect(p1).createGame(5, 10, 100, 10)).to.emit(tactics, "GameCreated");
 
-      // mine 10 blocks to pass the join time
-      for (let x=0; x<10; x++) {
-        await dangermoon.connect(p1).approve(tactics.address, "1000000000000000000");
-      }
+      await mineTenBlocks();
 
       // too late to join
       await expect(tactics.connect(p2).joinGame(0))
         .to.be.reverted;
     });
 
-    xit("should let players upgradeAttackRange", async () => {
+    it("should let players upgradeAttackRange", async () => {
       await dangermoon.connect(p1).approve(tactics.address, "100000000000000000");
-      await expect(tactics.connect(p1).createGame(5)).to.emit(tactics, "GameCreated");
+      await expect(tactics.connect(p1).createGame(5, 10, 100, 10)).to.emit(tactics, "GameCreated");
 
       await dangermoon.connect(p1).approve(tactics.address, "1000000000000000000");
-      await expect(tactics.connect(p1).joinGame(0)).to.emit(tactics, "GameJoined").withArgs(0, p1.address, 2, 2);
+      await expect(tactics.connect(p1).joinGame(0)).to.emit(tactics, "GameJoined").withArgs(0, p1.address, 2, 0);
+
+      await mineTenBlocks();
+      await tactics.connect(p1).claimEnergy(0, 2, 0);
 
       // await printGameBoard(0);
-      await expect(tactics.connect(p1).upgradeAttackRange(0, 2, 2))
+      await expect(tactics.connect(p1).upgradeAttackRange(0, 2, 0))
         .to.emit(tactics, "UpgradedAttackRange").withArgs(0, p1.address, 3);
       // await printGameBoard(0);
     });
 
-    xit("should let players grantEnergy", async () => {
+    it("should let players grantEnergy", async () => {
       await dangermoon.connect(p1).approve(tactics.address, "100000000000000000");
-      await expect(tactics.connect(p1).createGame(5)).to.emit(tactics, "GameCreated");
+      await expect(tactics.connect(p1).createGame(5, 10, 100, 10)).to.emit(tactics, "GameCreated");
 
       await dangermoon.connect(p1).approve(tactics.address, "1000000000000000000");
-      await expect(tactics.connect(p1).joinGame(0)).to.emit(tactics, "GameJoined").withArgs(0, p1.address, 1, 0);
+      await expect(tactics.connect(p1).joinGame(0)).to.emit(tactics, "GameJoined").withArgs(0, p1.address, 3, 0);
 
       await dangermoon.connect(p2).approve(tactics.address, "1000000000000000000");
-      await expect(tactics.connect(p2).joinGame(0)).to.emit(tactics, "GameJoined").withArgs(0, p2.address, 1, 2);
+      await expect(tactics.connect(p2).joinGame(0)).to.emit(tactics, "GameJoined").withArgs(0, p2.address, 1, 0);
+
+      await mineTenBlocks();
+      await tactics.connect(p1).claimEnergy(0, 3, 0);
 
       // await printGameBoard(0);
-      await expect(tactics.connect(p1).grantEnergy(0, 1, 0, 1, 2))
-        .to.emit(tactics, "EnergyGranted").withArgs(0, p1.address, 1, 0, 1, 2);
+      await expect(tactics.connect(p1).grantEnergy(0, 3, 0, 1, 0))
+        .to.emit(tactics, "EnergyGranted").withArgs(0, p1.address, 3, 0, 1, 0);
       // await printGameBoard(0);
     });
 
-    xit("should let players move", async () => {
+    it("should let players move", async () => {
       await dangermoon.connect(p1).approve(tactics.address, "100000000000000000");
-      await expect(tactics.connect(p1).createGame(5)).to.emit(tactics, "GameCreated");
+      await expect(tactics.connect(p1).createGame(5, 10, 100, 10)).to.emit(tactics, "GameCreated");
 
       await dangermoon.connect(p1).approve(tactics.address, "1000000000000000000");
       await expect(tactics.connect(p1).joinGame(0)).to.emit(tactics, "GameJoined").withArgs(0, p1.address, 0, 0);
+
+      await mineTenBlocks();
+      await tactics.connect(p1).claimEnergy(0, 0, 0);
 
       // await printGameBoard(0);
       await expect(tactics.connect(p1).move(0, 0, 0, 1, 1))
@@ -371,86 +367,84 @@ describe('TicTacToe', function() {
       // await printGameBoard(0);
     });
 
-    xit("should not let players attack out of range", async () => {
+    it("should not let players attack out of range", async () => {
       await dangermoon.connect(p1).approve(tactics.address, "100000000000000000");
-      await expect(tactics.connect(p1).createGame(20)).to.emit(tactics, "GameCreated");
+      await expect(tactics.connect(p1).createGame(20, 10, 100, 10)).to.emit(tactics, "GameCreated");
 
       await dangermoon.connect(p1).approve(tactics.address, "1000000000000000000");
-      // await tactics.connect(p1).joinGame(0);
-      await expect(tactics.connect(p1).joinGame(0)).to.emit(tactics, "GameJoined").withArgs(0, p1.address, 0, 4);
-      await dangermoon.connect(p2).approve(tactics.address, "1000000000000000000");
-      // await tactics.connect(p2).joinGame(0);
-      await expect(tactics.connect(p2).joinGame(0)).to.emit(tactics, "GameJoined").withArgs(0, p2.address, 4, 2);
-      await dangermoon.connect(p3).approve(tactics.address, "1000000000000000000");
-      // await tactics.connect(p3).joinGame(0);
-      await expect(tactics.connect(p3).joinGame(0)).to.emit(tactics, "GameJoined").withArgs(0, p3.address, 0, 1);
+      await expect(tactics.connect(p1).joinGame(0)).to.emit(tactics, "GameJoined").withArgs(0, p1.address, 2, 6);
+
+      await mineTenBlocks();
+      await tactics.connect(p1).claimEnergy(0, 2, 6);
 
       // await printGameBoard(0);
-      await expect(tactics.connect(p1).attack(0, 0, 4, 0, 1))
+      await expect(tactics.connect(p1).attack(0, 2, 6, 0, 0))
         .to.be.reverted;
     });
 
-    xit("should let players claimWinnings", async () => {
+    it("should let players grantHitpoint", async () => {
       await dangermoon.connect(p1).approve(tactics.address, "100000000000000000");
-      await expect(tactics.connect(p1).createGame(2)).to.emit(tactics, "GameCreated");
+      await expect(tactics.connect(p1).createGame(5, 10, 100, 10)).to.emit(tactics, "GameCreated");
 
-      await dangermoon.connect(p1).approve(tactics.address, "1200000000000000000");
-      await expect(tactics.connect(p1).joinGame(0)).to.emit(tactics, "GameJoined").withArgs(0, p1.address, 0, 0);
+      await dangermoon.connect(p1).approve(tactics.address, "1000000000000000000");
+      await expect(tactics.connect(p1).joinGame(0)).to.emit(tactics, "GameJoined").withArgs(0, p1.address, 2, 1);
 
       await dangermoon.connect(p2).approve(tactics.address, "1000000000000000000");
-      await expect(tactics.connect(p2).joinGame(0)).to.emit(tactics, "GameJoined").withArgs(0, p2.address, 1, 0);
+      await expect(tactics.connect(p2).joinGame(0)).to.emit(tactics, "GameJoined").withArgs(0, p2.address, 3, 2);
 
-      await tactics.connect(p1).attack(0, 0, 0, 1, 0);
       await mineTenBlocks();
-      await tactics.connect(p1).claimEnergy(0, 0, 0);
-      await tactics.connect(p1).attack(0, 0, 0, 1, 0);
+      await tactics.connect(p1).claimEnergy(0, 2, 1);
+
+      // await printGameBoard(0);
+      await expect(tactics.connect(p1).grantHitpoint(0, 2, 1, 3, 2))
+        .to.emit(tactics, "HitpointGranted").withArgs(0, p1.address, 2, 1, 3, 2);
+      // await printGameBoard(0);
+    });
+
+    it("should let players claimWinnings", async () => {
+      await dangermoon.connect(p1).approve(tactics.address, "100000000000000000");
+      await expect(tactics.connect(p1).createGame(5, 10, 100, 10)).to.emit(tactics, "GameCreated");
+
+      await dangermoon.connect(p1).approve(tactics.address, "2000000000000000000");
+      await expect(tactics.connect(p1).joinGame(0)).to.emit(tactics, "GameJoined").withArgs(0, p1.address, 2, 0);
+      await dangermoon.connect(p2).approve(tactics.address, "1000000000000000000");
+      await expect(tactics.connect(p2).joinGame(0)).to.emit(tactics, "GameJoined").withArgs(0, p2.address, 2, 2);
+
       await mineTenBlocks();
-      await tactics.connect(p1).claimEnergy(0, 0, 0);
-      await tactics.connect(p1).attack(0, 0, 0, 1, 0);
+      await tactics.connect(p1).claimEnergy(0, 2, 0);
+      await tactics.connect(p2).claimEnergy(0, 2, 2);
+
+      await tactics.connect(p1).attack(0, 2, 0, 2, 2);
+      await mineTenBlocks();
+      await tactics.connect(p1).claimEnergy(0, 2, 0);
+      await tactics.connect(p1).attack(0, 2, 0, 2, 2);
+      await mineTenBlocks();
+      await tactics.connect(p1).claimEnergy(0, 2, 0);
+      await tactics.connect(p1).attack(0, 2, 0, 2, 2);
 
       await printGameBoard(0);
 
       // await logAllBalances("before claim");
       await expectAllBalances({
-        "_tactics": "320000000000000000",
+        "_tactics": "340000000000000000",
         "_owner": "500000000000000000000000",
-        "_p1": "44780000000000000000",
-        "_p2": "44900000000000000000",
+        "_p1": "44770000000000000000",
+        "_p2": "44890000000000000000",
         "_p3": "45000000000000000000",
         "_p4": "45000000000000000000",
       });
 
-      await tactics.connect(p1).claimWinnings(0, 0, 0);
+      await tactics.connect(p1).claimWinnings(0, 2, 0);
 
       // await logAllBalances("after claim");
       await expectAllBalances({
         "_tactics": "0",
-        "_owner": "500000032000000000000000",
-        "_p1": "45068000000000000000",
-        "_p2": "44900000000000000000",
+        "_owner": "500000034000000000000000",
+        "_p1": "45076000000000000000",
+        "_p2": "44890000000000000000",
         "_p3": "45000000000000000000",
         "_p4": "45000000000000000000",
       });
 
     });
-
-    xit("should let players grantHitpoint", async () => {
-      await dangermoon.connect(p1).approve(tactics.address, "100000000000000000");
-      await expect(tactics.connect(p1).createGame(5)).to.emit(tactics, "GameCreated");
-
-      await dangermoon.connect(p1).approve(tactics.address, "1000000000000000000");
-      await tactics.connect(p1).joinGame(0);
-      // await expect(tactics.connect(p1).joinGame(0)).to.emit(tactics, "GameJoined").withArgs(0, p1.address, 0, 1);
-
-      await dangermoon.connect(p2).approve(tactics.address, "1000000000000000000");
-      await tactics.connect(p2).joinGame(0);
-      // await expect(tactics.connect(p2).joinGame(0)).to.emit(tactics, "GameJoined").withArgs(0, p2.address, 1, 2);
-
-      // await printGameBoard(0);
-      // TODO shouldnt be able to grant >3 HP
-      await expect(tactics.connect(p1).grantHitpoint(0, 0, 1, 1, 2))
-        .to.emit(tactics, "HitpointGranted").withArgs(0, p1.address, 0, 1,  1, 2);
-      // await printGameBoard(0);
-    });
-
 });
