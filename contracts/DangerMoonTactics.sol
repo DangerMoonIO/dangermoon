@@ -520,6 +520,10 @@ contract DangerMoonTactics is Ownable, Utils {
         // Reallocate 1 hitpoint from sender to the piece on targetX,targetY
         piece.hitpoints -= 1;
         target.hitpoints += 1;
+        // Check if sender is dead
+        if (piece.hitpoints == 0) {
+            game.numDead += 1;
+        }
 
         emit HitpointGranted(gameId, msg.sender, x, y, targetX, targetY);
     }

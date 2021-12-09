@@ -2,17 +2,18 @@ const hre = require("hardhat");
 
 async function main() {
 
-  // most recently deployed dangermoon on mainnet
+  // mainnet dangermoon
   const DANGERMOON_ADDRESS = "0x90c7e271F8307E64d9A1bd86eF30961e5e1031e7";
 
-  // We get the contract to deploy
+  // // We get the contract to deploy
   const DangerMoonTactics = await hre.ethers.getContractFactory("DangerMoonTactics");
-
   const tactics = await DangerMoonTactics.deploy(DANGERMOON_ADDRESS);
   await tactics.deployed();
   console.log("Tactics deployed to mainnet:", tactics.address);
 
-  // Get dangermoon contract and exclude tactics from fees
+  // const DangerMoonTactics = await ethers.getContractFactory("DangerMoonTactics");
+  // let tactics = await DangerMoonTactics.attach("0x30715124F51F6c67AA2Ef9bcaD900de1469a6a85");
+
   const DangerMoon = await ethers.getContractFactory("DangerMoon");
   let dangermoon = await DangerMoon.attach(DANGERMOON_ADDRESS);
 
