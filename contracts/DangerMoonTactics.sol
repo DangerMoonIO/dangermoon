@@ -229,7 +229,7 @@ contract DangerMoonTactics is Ownable, Utils {
       uint256 lastClaim;
       uint8 votes;     // 3 votes = piece gets 1 energy
       uint8 energy;    // default 0, required to perform any action
-      uint8 range;     // default 2, max 4
+      uint8 range;     // default 1, max 3
       uint8 hitpoints; // default 3, dead when == 0
     }
 
@@ -373,7 +373,7 @@ contract DangerMoonTactics is Ownable, Utils {
         piece.owner = msg.sender;
         // piece.lastClaim = 0; // implied
         // piece.energy = 0; // implied
-        piece.range = 2;
+        piece.range = 1;
         piece.hitpoints = 3;
 
         // Add piece to game by selecting random open square
@@ -440,7 +440,7 @@ contract DangerMoonTactics is Ownable, Utils {
         Piece storage piece = game.board[x][y];
         require(commonChecks(gameId, x, y));
         require(piece.energy >= 1);
-        require(piece.range < 4); // "Cant upgrade range"
+        require(piece.range < 3); // "Cant upgrade range"
         return true;
     }
 

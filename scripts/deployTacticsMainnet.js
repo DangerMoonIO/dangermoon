@@ -25,7 +25,7 @@ async function main() {
   const blocksPerTurn = 28800;  // ~1 day at 3s/block
   const energyFeePercent = 100; // ~$10
   const entryFeePercent = 10;   // ~$1
-  const createGameTx = await tactics.createGame(20, blocksPerTurn, energyFeePercent, entryFeePercent);
+  const createGameTx = await tactics.createGame(10, blocksPerTurn, energyFeePercent, entryFeePercent);
   await createGameTx.wait();
 
   console.log("locking new games...");
