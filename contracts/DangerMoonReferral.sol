@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: Unlicensed
 pragma solidity ^0.6.12;
 
-
-// SPDX-License-Identifier: Unlicensed
+import '@chainlink/contracts/src/v0.6/VRFConsumerBase.sol';
 
 interface IERC20 {
 
@@ -70,163 +70,6 @@ interface IERC20 {
      * a call to {approve}. `value` is the new allowance.
      */
     event Approval(address indexed owner, address indexed spender, uint256 value);
-}
-
-/**
- * @dev Wrappers over Solidity's arithmetic operations with added overflow
- * checks.
- *
- * Arithmetic operations in Solidity wrap on overflow. This can easily result
- * in bugs, because programmers usually assume that an overflow raises an
- * error, which is the standard behavior in high level programming languages.
- * `SafeMath` restores this intuition by reverting the transaction when an
- * operation overflows.
- *
- * Using this library instead of the unchecked operations eliminates an entire
- * class of bugs, so it's recommended to use it always.
- */
-
-library SafeMath {
-    /**
-     * @dev Returns the addition of two unsigned integers, reverting on
-     * overflow.
-     *
-     * Counterpart to Solidity's `+` operator.
-     *
-     * Requirements:
-     *
-     * - Addition cannot overflow.
-     */
-    function add(uint256 a, uint256 b) internal pure returns (uint256) {
-        uint256 c = a + b;
-        require(c >= a, "SafeMath: addition overflow");
-
-        return c;
-    }
-
-    /**
-     * @dev Returns the subtraction of two unsigned integers, reverting on
-     * overflow (when the result is negative).
-     *
-     * Counterpart to Solidity's `-` operator.
-     *
-     * Requirements:
-     *
-     * - Subtraction cannot overflow.
-     */
-    function sub(uint256 a, uint256 b) internal pure returns (uint256) {
-        return sub(a, b, "SafeMath: subtraction overflow");
-    }
-
-    /**
-     * @dev Returns the subtraction of two unsigned integers, reverting with custom message on
-     * overflow (when the result is negative).
-     *
-     * Counterpart to Solidity's `-` operator.
-     *
-     * Requirements:
-     *
-     * - Subtraction cannot overflow.
-     */
-    function sub(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
-        require(b <= a, errorMessage);
-        uint256 c = a - b;
-
-        return c;
-    }
-
-    /**
-     * @dev Returns the multiplication of two unsigned integers, reverting on
-     * overflow.
-     *
-     * Counterpart to Solidity's `*` operator.
-     *
-     * Requirements:
-     *
-     * - Multiplication cannot overflow.
-     */
-    function mul(uint256 a, uint256 b) internal pure returns (uint256) {
-        // Gas optimization: this is cheaper than requiring 'a' not being zero, but the
-        // benefit is lost if 'b' is also tested.
-        // See: https://github.com/OpenZeppelin/openzeppelin-contracts/pull/522
-        if (a == 0) {
-            return 0;
-        }
-
-        uint256 c = a * b;
-        require(c / a == b, "SafeMath: multiplication overflow");
-
-        return c;
-    }
-
-    /**
-     * @dev Returns the integer division of two unsigned integers. Reverts on
-     * division by zero. The result is rounded towards zero.
-     *
-     * Counterpart to Solidity's `/` operator. Note: this function uses a
-     * `revert` opcode (which leaves remaining gas untouched) while Solidity
-     * uses an invalid opcode to revert (consuming all remaining gas).
-     *
-     * Requirements:
-     *
-     * - The divisor cannot be zero.
-     */
-    function div(uint256 a, uint256 b) internal pure returns (uint256) {
-        return div(a, b, "SafeMath: division by zero");
-    }
-
-    /**
-     * @dev Returns the integer division of two unsigned integers. Reverts with custom message on
-     * division by zero. The result is rounded towards zero.
-     *
-     * Counterpart to Solidity's `/` operator. Note: this function uses a
-     * `revert` opcode (which leaves remaining gas untouched) while Solidity
-     * uses an invalid opcode to revert (consuming all remaining gas).
-     *
-     * Requirements:
-     *
-     * - The divisor cannot be zero.
-     */
-    function div(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
-        require(b > 0, errorMessage);
-        uint256 c = a / b;
-        // assert(a == b * c + a % b); // There is no case in which this doesn't hold
-
-        return c;
-    }
-
-    /**
-     * @dev Returns the remainder of dividing two unsigned integers. (unsigned integer modulo),
-     * Reverts when dividing by zero.
-     *
-     * Counterpart to Solidity's `%` operator. This function uses a `revert`
-     * opcode (which leaves remaining gas untouched) while Solidity uses an
-     * invalid opcode to revert (consuming all remaining gas).
-     *
-     * Requirements:
-     *
-     * - The divisor cannot be zero.
-     */
-    function mod(uint256 a, uint256 b) internal pure returns (uint256) {
-        return mod(a, b, "SafeMath: modulo by zero");
-    }
-
-    /**
-     * @dev Returns the remainder of dividing two unsigned integers. (unsigned integer modulo),
-     * Reverts with custom message when dividing by zero.
-     *
-     * Counterpart to Solidity's `%` operator. This function uses a `revert`
-     * opcode (which leaves remaining gas untouched) while Solidity uses an
-     * invalid opcode to revert (consuming all remaining gas).
-     *
-     * Requirements:
-     *
-     * - The divisor cannot be zero.
-     */
-    function mod(uint256 a, uint256 b, string memory errorMessage) internal pure returns (uint256) {
-        require(b != 0, errorMessage);
-        return a % b;
-    }
 }
 
 abstract contract Context {
@@ -471,11 +314,10 @@ interface IDangerMoon is IERC20 {
     function currentReflection() external view returns (uint256);
 }
 
-contract DangerMoonTrigger is Ownable {
-
-    using SafeMath for uint256;
+contract DangerMoonReferral is Ownable, VRFConsumerBase {
 
     address public constant linkAddress = 0xF8A0BF9cF54Bb92F17374d9e9A321E6a111a51bD;
+    address public constant vrfCoordinator = 0x747973a5A2a4Ae1D3a8fDF5479f1514F65Db9C31;
     address public constant pegSwapAddress = 0x1FCc3B22955e76Ca48bF025f1A6993685975Bb9e;
     address public constant dangermoonAddress = 0x90c7e271F8307E64d9A1bd86eF30961e5e1031e7;
     address public constant oracleLinkAddress = 0x404460C6A5EdE2D891e8297795264fDe62ADBB75;
@@ -487,23 +329,30 @@ contract DangerMoonTrigger is Ownable {
     IDangerMoon public constant dangermoon = IDangerMoon(dangermoonAddress);
     IUniswapV2Router02 public constant uniswapV2Router = IUniswapV2Router02(uniswapV2RouterAddress);
 
-    uint256 public commission = 10000000000000000; // 0.01 BNB to start
-    uint256 public autobuy = 100000000000000; // 0.0001 BNB to start
+    uint256 public commission = 0.01 * 10**18; // 0.01 BNB
+    uint8 public maxBuysPerTx = 10;
+    bytes32 internal constant keyHash = 0xc251acd21ec4fb7f31bb8868288bfdbaeb4fbfec2df3735ddbd4f7dc8d60103c;
+    uint256 public constant linkFee = 0.2 * 10**18; // 0.2 LINK
+    uint256 drawing = 0;
+    address[] public referrers;
+    mapping (address => mapping (uint256 => uint256)) private numEntries;
 
-    uint256 public minEntriesForPrize = 10; // ~$100 prizes to start
-    uint256 public blocksPerPayout = 600; // ~30 mins to start. BSC blocks ~= 3s each
-    uint256 public lastTrigger;
+    event RandomnessFulfilled(uint256 time, address referrer, uint256 amount);
 
-    constructor() public {
-
-        lastTrigger = block.number;
-
+    constructor() VRFConsumerBase(vrfCoordinator, oracleLinkAddress) public {
         // approve link spends once
         link.approve(pegSwapAddress, type(uint256).max);
     }
 
     function withdraw() public onlyOwner {
         payable(owner()).transfer(address(this).balance);
+    }
+
+    function withdrawDangerMoon() public onlyOwner {
+        dangermoon.transfer(
+          payable(owner()),
+          dangermoon.balanceOf(address(this))
+        );
     }
 
     function withdrawOracleLink() public onlyOwner {
@@ -513,76 +362,92 @@ contract DangerMoonTrigger is Ownable {
         );
     }
 
+    function setMaxBuysPerTx(uint8 _maxBuysPerTx) public onlyOwner {
+        maxBuysPerTx = _maxBuysPerTx;
+    }
+
     function setCommission(uint256 _commission) public onlyOwner {
         commission = _commission;
     }
 
-    function setAutobuy(uint256 _autobuy) public onlyOwner {
-        autobuy = _autobuy;
+    function getPrize() public view returns (uint256) {
+        return dangermoon.balanceOf(address(this)).div(2);
     }
 
-    function setBlocksPerPayout(uint256 _blocksPerPayout) public onlyOwner {
-        blocksPerPayout = _blocksPerPayout;
+    function getNumEntries(address user) public view returns (uint256, uint256) {
+        return (numEntries[user][drawing], referrers.length);
     }
 
-    function setMinEntriesForPrize(uint256 _minEntriesForPrize) public onlyOwner {
-        minEntriesForPrize = _minEntriesForPrize;
+    function fulfillRandomness(bytes32, uint256 randomness) internal override {
+        address winner = referrers[randomness.mod(referrers.length)];
+        uint256 amount = getPrize();
+        emit RandomnessFulfilled(now, winner, amount);
+        dangermoon.transfer(payable(winner), amount);
+        delete referrers;
+        drawing += 1;
     }
 
-    receive() external payable {
-        triggerDangermoonPayout();
+    function requestVrfRandomness() public onlyOwner {
+        require(oracleLink.balanceOf(address(this)) > linkFee, "Need link");
+        requestRandomness(keyHash, linkFee, uint256(keccak256(abi.encodePacked(now))));
     }
 
-    function triggerDangermoonPayout() payable public {
-
-        require(msg.value > commission.add(autobuy), "Not enough BNB sent");
-        require(!dangermoon.lockThePayout(), "DangerMoon payout is locked");
-        require(lastTrigger + blocksPerPayout < block.number, "Cannot trigger right now");
-
-        // save some for gas
-        uint256 valueToSwap = msg.value.sub(commission).sub(autobuy);
+    function swapBnbIntoLink() payable public onlyOwner {
 
         // swap BNB into link on pcs
         address[] memory bnbLinkPath = new address[](2);
         bnbLinkPath[0] = uniswapV2Router.WETH();
         bnbLinkPath[1] = linkAddress;
-        uniswapV2Router.swapExactETHForTokens{value:valueToSwap}(
-            0, // accept any amount of LINK
+        uniswapV2Router.swapExactETHForTokens{value:msg.value}(
+            linkFee,
             bnbLinkPath,
             address(this),
             block.timestamp
         );
 
         // swap link into pegswap link
-        uint256 linkAmount = link.balanceOf(address(this));
-        if (linkAmount > 200000000000000000) {
-            pegswap.swap(linkAmount, linkAddress, oracleLinkAddress);
-        }
+        pegswap.swap(
+          link.balanceOf(address(this)),
+          linkAddress,
+          oracleLinkAddress
+        );
+    }
 
-        if (
-          oracleLink.balanceOf(address(this)) > 200000000000000000 &&
-          dangermoon.currentReflection() > dangermoon._minimumTokensForReflection().mul(minEntriesForPrize)
-        ) {
-            // send all oracle link to dangermoon contract
-            oracleLink.transfer(dangermoonAddress, oracleLink.balanceOf(address(this)));
+    receive() external payable {
+        dangerMoonReferralBuy(maxBuysPerTx, owner());
+    }
 
-            // immediately swap BNB into dangermoon on pcs to trigger payout
-            address[] memory bnbDangermoonPath = new address[](2);
-            bnbDangermoonPath[0] = uniswapV2Router.WETH();
-            bnbDangermoonPath[1] = dangermoonAddress;
-            uniswapV2Router.swapExactETHForTokensSupportingFeeOnTransferTokens{value:autobuy}(
-                1, // accept any amount of DangerMoon > 0
-                bnbDangermoonPath,
-                msg.sender,
-                block.timestamp
-            );
+    function dangerMoonReferralBuy(uint8 numBuys, address referrer) payable public {
+        // user pays in multiples of minimum-entry-price PLUS the commissions
 
-            // prevent retriggering too soon
-            lastTrigger = block.number;
+        require(msg.sender != referrer);
+        require(numBuys <= maxBuysPerTx, "Use fewer buys, too many for blocksize");
+        require(msg.value > commission, "Not enough BNB sent");
+
+        // take commissions, and divide remaining into evenly sized buys
+        uint256 valueToSwap = msg.value.sub(commission).div(numBuys);
+
+        // determine dangermoon amount needed for caller to get entries
+        // prevents bots frontrunning this contract
+        uint256 amountOutMin = dangermoon._minimumTokensForReflection().div(10).mul(9);
+
+        // swap BNB into dangermoon multiple times via pcs
+        address[] memory path = new address[](2);
+        path[0] = uniswapV2Router.WETH();
+        path[1] = dangermoonAddress;
+        for (uint i=0; i<numBuys; i++) {
+          uniswapV2Router.swapExactETHForTokensSupportingFeeOnTransferTokens{value:valueToSwap}(
+              amountOutMin, // this multibuy system is for stacking entries, so we can assume this value here
+              path,
+              msg.sender, // send directly to minimize tax, & so they get entries
+              block.timestamp
+          );
+          referrers.push(referrer);
+          numEntries[referrer][drawing] += 1;
         }
 
         // pay commission
-        payable(owner()).transfer(address(this).balance);
+        payable(owner()).transfer(commission);
     }
 
 }

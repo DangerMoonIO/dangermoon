@@ -1,6 +1,5 @@
 pragma solidity ^0.6.12;
 
-
 // SPDX-License-Identifier: Unlicensed
 
 interface IERC20 {
@@ -85,7 +84,6 @@ interface IERC20 {
  * Using this library instead of the unchecked operations eliminates an entire
  * class of bugs, so it's recommended to use it always.
  */
-
 library SafeMath {
     /**
      * @dev Returns the addition of two unsigned integers, reverting on
@@ -326,263 +324,60 @@ contract Ownable is Context {
     }
 }
 
-interface IUniswapV2Router01 {
-    function factory() external pure returns (address);
-    function WETH() external pure returns (address);
-
-    function addLiquidity(
-        address tokenA,
-        address tokenB,
-        uint amountADesired,
-        uint amountBDesired,
-        uint amountAMin,
-        uint amountBMin,
-        address to,
-        uint deadline
-    ) external returns (uint amountA, uint amountB, uint liquidity);
-    function addLiquidityETH(
-        address token,
-        uint amountTokenDesired,
-        uint amountTokenMin,
-        uint amountETHMin,
-        address to,
-        uint deadline
-    ) external payable returns (uint amountToken, uint amountETH, uint liquidity);
-    function removeLiquidity(
-        address tokenA,
-        address tokenB,
-        uint liquidity,
-        uint amountAMin,
-        uint amountBMin,
-        address to,
-        uint deadline
-    ) external returns (uint amountA, uint amountB);
-    function removeLiquidityETH(
-        address token,
-        uint liquidity,
-        uint amountTokenMin,
-        uint amountETHMin,
-        address to,
-        uint deadline
-    ) external returns (uint amountToken, uint amountETH);
-    function removeLiquidityWithPermit(
-        address tokenA,
-        address tokenB,
-        uint liquidity,
-        uint amountAMin,
-        uint amountBMin,
-        address to,
-        uint deadline,
-        bool approveMax, uint8 v, bytes32 r, bytes32 s
-    ) external returns (uint amountA, uint amountB);
-    function removeLiquidityETHWithPermit(
-        address token,
-        uint liquidity,
-        uint amountTokenMin,
-        uint amountETHMin,
-        address to,
-        uint deadline,
-        bool approveMax, uint8 v, bytes32 r, bytes32 s
-    ) external returns (uint amountToken, uint amountETH);
-    function swapExactTokensForTokens(
-        uint amountIn,
-        uint amountOutMin,
-        address[] calldata path,
-        address to,
-        uint deadline
-    ) external returns (uint[] memory amounts);
-    function swapTokensForExactTokens(
-        uint amountOut,
-        uint amountInMax,
-        address[] calldata path,
-        address to,
-        uint deadline
-    ) external returns (uint[] memory amounts);
-    function swapExactETHForTokens(uint amountOutMin, address[] calldata path, address to, uint deadline)
-        external
-        payable
-        returns (uint[] memory amounts);
-    function swapTokensForExactETH(uint amountOut, uint amountInMax, address[] calldata path, address to, uint deadline)
-        external
-        returns (uint[] memory amounts);
-    function swapExactTokensForETH(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline)
-        external
-        returns (uint[] memory amounts);
-    function swapETHForExactTokens(uint amountOut, address[] calldata path, address to, uint deadline)
-        external
-        payable
-        returns (uint[] memory amounts);
-
-    function quote(uint amountA, uint reserveA, uint reserveB) external pure returns (uint amountB);
-    function getAmountOut(uint amountIn, uint reserveIn, uint reserveOut) external pure returns (uint amountOut);
-    function getAmountIn(uint amountOut, uint reserveIn, uint reserveOut) external pure returns (uint amountIn);
-    function getAmountsOut(uint amountIn, address[] calldata path) external view returns (uint[] memory amounts);
-    function getAmountsIn(uint amountOut, address[] calldata path) external view returns (uint[] memory amounts);
-}
-
-interface IUniswapV2Router02 is IUniswapV2Router01 {
-    function removeLiquidityETHSupportingFeeOnTransferTokens(
-        address token,
-        uint liquidity,
-        uint amountTokenMin,
-        uint amountETHMin,
-        address to,
-        uint deadline
-    ) external returns (uint amountETH);
-    function removeLiquidityETHWithPermitSupportingFeeOnTransferTokens(
-        address token,
-        uint liquidity,
-        uint amountTokenMin,
-        uint amountETHMin,
-        address to,
-        uint deadline,
-        bool approveMax, uint8 v, bytes32 r, bytes32 s
-    ) external returns (uint amountETH);
-
-    function swapExactTokensForTokensSupportingFeeOnTransferTokens(
-        uint amountIn,
-        uint amountOutMin,
-        address[] calldata path,
-        address to,
-        uint deadline
-    ) external;
-    function swapExactETHForTokensSupportingFeeOnTransferTokens(
-        uint amountOutMin,
-        address[] calldata path,
-        address to,
-        uint deadline
-    ) external payable;
-    function swapExactTokensForETHSupportingFeeOnTransferTokens(
-        uint amountIn,
-        uint amountOutMin,
-        address[] calldata path,
-        address to,
-        uint deadline
-    ) external;
-}
-
-interface IPegSwap {
-    function swap(uint256 amount, address source, address target) external;
-}
-
 interface IDangerMoon is IERC20 {
     function lockThePayout() external returns (bool);
     function _minimumTokensForReflection() external returns (uint256);
-    function currentReflection() external view returns (uint256);
 }
 
-contract DangerMoonTrigger is Ownable {
+contract DangerMoonMultiSend is Ownable {
 
     using SafeMath for uint256;
 
-    address public constant linkAddress = 0xF8A0BF9cF54Bb92F17374d9e9A321E6a111a51bD;
-    address public constant pegSwapAddress = 0x1FCc3B22955e76Ca48bF025f1A6993685975Bb9e;
-    address public constant dangermoonAddress = 0x90c7e271F8307E64d9A1bd86eF30961e5e1031e7;
-    address public constant oracleLinkAddress = 0x404460C6A5EdE2D891e8297795264fDe62ADBB75;
-    address public constant uniswapV2RouterAddress = 0x10ED43C718714eb63d5aA57B78B54704E256024E;
-
-    IERC20 public constant link = IERC20(linkAddress);
-    IERC20 public constant oracleLink = IERC20(oracleLinkAddress);
-    IPegSwap public constant pegswap = IPegSwap(pegSwapAddress);
-    IDangerMoon public constant dangermoon = IDangerMoon(dangermoonAddress);
-    IUniswapV2Router02 public constant uniswapV2Router = IUniswapV2Router02(uniswapV2RouterAddress);
-
+    IDangerMoon public dangermoon;
+    uint8 public maxSendsPerTx = 5;
+    address public dangermoonAddress = 0x90c7e271F8307E64d9A1bd86eF30961e5e1031e7;
     uint256 public commission = 10000000000000000; // 0.01 BNB to start
-    uint256 public autobuy = 100000000000000; // 0.0001 BNB to start
-
-    uint256 public minEntriesForPrize = 10; // ~$100 prizes to start
-    uint256 public blocksPerPayout = 600; // ~30 mins to start. BSC blocks ~= 3s each
-    uint256 public lastTrigger;
 
     constructor() public {
-
-        lastTrigger = block.number;
-
-        // approve link spends once
-        link.approve(pegSwapAddress, type(uint256).max);
+        dangermoon = IDangerMoon(dangermoonAddress);
     }
 
     function withdraw() public onlyOwner {
         payable(owner()).transfer(address(this).balance);
     }
 
-    function withdrawOracleLink() public onlyOwner {
-        oracleLink.transfer(
-          payable(owner()),
-          oracleLink.balanceOf(address(this))
-        );
-    }
-
     function setCommission(uint256 _commission) public onlyOwner {
         commission = _commission;
     }
 
-    function setAutobuy(uint256 _autobuy) public onlyOwner {
-        autobuy = _autobuy;
+    function setMaxSendsPerTx(uint8 _maxSendsPerTx) public onlyOwner {
+        maxSendsPerTx = _maxSendsPerTx;
     }
 
-    function setBlocksPerPayout(uint256 _blocksPerPayout) public onlyOwner {
-        blocksPerPayout = _blocksPerPayout;
-    }
+    receive() external payable { }
 
-    function setMinEntriesForPrize(uint256 _minEntriesForPrize) public onlyOwner {
-        minEntriesForPrize = _minEntriesForPrize;
-    }
-
-    receive() external payable {
-        triggerDangermoonPayout();
-    }
-
-    function triggerDangermoonPayout() payable public {
-
-        require(msg.value > commission.add(autobuy), "Not enough BNB sent");
-        require(!dangermoon.lockThePayout(), "DangerMoon payout is locked");
-        require(lastTrigger + blocksPerPayout < block.number, "Cannot trigger right now");
-
-        // save some for gas
-        uint256 valueToSwap = msg.value.sub(commission).sub(autobuy);
-
-        // swap BNB into link on pcs
-        address[] memory bnbLinkPath = new address[](2);
-        bnbLinkPath[0] = uniswapV2Router.WETH();
-        bnbLinkPath[1] = linkAddress;
-        uniswapV2Router.swapExactETHForTokens{value:valueToSwap}(
-            0, // accept any amount of LINK
-            bnbLinkPath,
-            address(this),
-            block.timestamp
-        );
-
-        // swap link into pegswap link
-        uint256 linkAmount = link.balanceOf(address(this));
-        if (linkAmount > 200000000000000000) {
-            pegswap.swap(linkAmount, linkAddress, oracleLinkAddress);
+    function dangerMoonUncappedMultiSend(address destination, uint256 numSends, uint256 amountToSend) payable public onlyOwner {
+        // Send dangermoon multiple times to give receiver multiple entries
+        for (uint i=0; i<numSends; i++) {
+            dangermoon.transferFrom(msg.sender, destination, amountToSend);
         }
+    }
 
-        if (
-          oracleLink.balanceOf(address(this)) > 200000000000000000 &&
-          dangermoon.currentReflection() > dangermoon._minimumTokensForReflection().mul(minEntriesForPrize)
-        ) {
-            // send all oracle link to dangermoon contract
-            oracleLink.transfer(dangermoonAddress, oracleLink.balanceOf(address(this)));
+    function dangerMoonMultiSend(address destination, uint8 numSends) payable public {
 
-            // immediately swap BNB into dangermoon on pcs to trigger payout
-            address[] memory bnbDangermoonPath = new address[](2);
-            bnbDangermoonPath[0] = uniswapV2Router.WETH();
-            bnbDangermoonPath[1] = dangermoonAddress;
-            uniswapV2Router.swapExactETHForTokensSupportingFeeOnTransferTokens{value:autobuy}(
-                1, // accept any amount of DangerMoon > 0
-                bnbDangermoonPath,
-                msg.sender,
-                block.timestamp
-            );
+        require(numSends <= maxSendsPerTx, "numSends greater than max");
+        require(msg.value >= commission, "Not enough BNB sent");
 
-            // prevent retriggering too soon
-            lastTrigger = block.number;
+        // determine dangermoon amount needed for receiver to get entries
+        uint256 amountToSend = dangermoon._minimumTokensForReflection();
+        require(amountToSend * numSends <= dangermoon.allowance(msg.sender, address(this)), "Need approval.");
+
+        // Send dangermoon multiple times to give receiver multiple entries
+        for (uint i=0; i<numSends; i++) {
+          dangermoon.transferFrom(msg.sender, destination, amountToSend);
         }
 
         // pay commission
         payable(owner()).transfer(address(this).balance);
     }
-
 }

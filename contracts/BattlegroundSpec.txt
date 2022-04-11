@@ -1,0 +1,106 @@
+spec
+- users pay an entry fee (e.g. $10) for a piece
+- costs (e.g. $1) to collect an energy point each day
+- tanks are randomly placed on the board
+- tanks each start with the same stats. energy:1, range:2, hitpoints:3
+- moving + attacking each cost 1 energy
+- you can perform an action as long as you have an energy point
+- you can grant your energy points to anyone in range
+- you can upgrade your range to max 5. burning 1 energy point = +1 range
+- you can attack anyone in range, spending 1 energy to deduct 1 hit point from target
+- when you die, your piece is locked on the game board (becoming an obstacle)
+- 3 jury votes = 1 free action point
+
+struct Piece {
+  address owner;   // only address that can manage this piece
+  uint256 lastEnergyClaim;
+  uint256 lastVote;
+  uint8 hitpoints; // dead when == 0, default 3
+  uint8 range;     // max 5, default 3
+  uint8 energy;    // default 1
+}
+struct Game {
+  uint256 mustJoinByBlock;
+  uint256 voteEndBlock;
+  uint256 prizePool;
+  uint16 width;
+  uint16 height;
+  uint8 ante;
+  uint8 playerCount;
+  uint8 playerLimit;
+  Piece[][] board;
+  uint8[][] votes;
+  mapping(address => Piece) dead;
+}
+mapping(uint256 => Game) public games;
+uint256 public numGames;
+
+createGame (playerLimit, ante)
+- checks inputs are reasonable
+- creates game struct, adds to list of games
+- width and height are determined by playerLimit
+- increments numGames
+- ?? calls joinGame() for sender
+
+joinGame (gameId) returns (x, y)
+- checks that game exists
+- checks that game is not full
+- checks that game is not too old to join
+- transfers entryFee from sender into prizePool
+- increments game player count
+- grants sender a piece on the game board with default stats, randomly located
+- sets lastEnergyClaim to block.number
+- sets sender as piece owner
+
+claimEnergy (gameId, x, y)
+- checks that game exists, inputs valid, sender owns x,y
+- checks that 1 day has passed since lastEnergyClaim
+- transfers ante/10 from sender into prizePool
+- increases sender's energy points by 1
+
+upgradeAttackRange (gameId, x, y)
+- checks that game exists, inputs valid, sender owns x,y
+- checks that range < 5 (even after increase)
+- checks that piece on x,y is alive (has HP)
+- deducts 1 energy point from sender
+- increases sender's attack range by 1
+
+move (gameId, x, y, targetX, targetY)
+- checks that game exists, inputs valid, sender owns x,y
+- checks that piece on x,y is alive (has HP)
+- checks that no piece is on targetX,targetY
+- checks that the targetX,targetY are next to sender's current coords
+- deducts 1 energy point from x,y
+- moves sender's piece to targetX,targetY
+
+attack (gameId, x, y, targetX, targetY)
+- checks that game exists, inputs valid, sender owns x,y
+- checks that piece on x,y is alive (has HP)
+- checks that piece is on targetX,targetY
+- checks that targetX,targetY is within attack range
+- deducts 1 hitpoint from piece on targetX,targetY
+- deducts 1 energy point from x,y
+- moves target to dead if HP==0
+
+grantEnergy (gameId, x, y, targetX, targetY)
+- checks that game exists, inputs valid, sender owns x,y
+- checks that piece is on targetX,targetY
+- checks that targetX,targetY is within attack range
+- subtracts 1 energy from your piece
+- grants 1 energy to the piece on targetX,targetY
+
+grantHitpoint (gameId, x, y, targetX, targetY)
+
+juryVote (gameId, x, y, targetX, targetY)
+- checks that game exists, inputs valid, sender owns x,y
+- checks that x,y is dead (HP == 0)
+- checks that x,y lastVote is more than a day old
+- checks that targetX,targetY is alive
+- when target has 3 votes, votes reset to 0 and they get energy
+
+claimWinnings (gameId)
+- checks that game exists
+- checks that you are the last player on the board (dead.length == numPlayers - 1)
+- sends contract owner the take fee
+- grants you the entire prize pool minus take fee
+- resets game prize pool to 0 to prevent claiming more than once

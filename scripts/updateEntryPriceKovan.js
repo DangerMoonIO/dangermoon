@@ -1,8 +1,6 @@
 const cron = require('node-cron');
-const hre = require("hardhat");
 const fetch = require("node-fetch");
 const { ethers } = require("hardhat");
-const Contract = require('web3-eth-contract');
 
 const ADDRESS = "0xfA1E56f8BC6AF69Ce4AE36f2E6E5412e06FC6e57";
 

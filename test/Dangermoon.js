@@ -1,10 +1,11 @@
 const CONFIG = require('../hardhat.config.js');
-const { MNEMONIC } = require('../secrets.json');
 const { ethers } = require("hardhat");
 const { expect } = require("chai");
 
-// const utils = require("./helpers/utils");
-const time = require("./helpers/time");
+if (process.env.PKEY === undefined) {
+  console.error("Please provide PKEY env")
+  process.exit(1)
+}
 
 const WETH_ADDRESS = "0xd0A1E359811322d97991E03f863a0C30C2cF029C";
 
@@ -172,14 +173,7 @@ const DEAD = '0x000000000000000000000000000000000000dEaD';
 
 let dangermoon;
 const dangermoonDecimals = 9;
-let owner;
-let a;
-let b;
-let c;
-let d;
-let marketing;
-let charity;
-let testWallet;
+let owner, a, b, c, d, marketing, charity, testWallet;
 let halfTotalTokenSupply
 
 async function logAllBalances(header) {
@@ -246,7 +240,7 @@ describe("DangerMoon", function () {
     // Set up test wallet
     const rpcUrl = CONFIG.networks.hardhat.forking.url;
     const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
-    testWallet = ethers.Wallet.fromMnemonic(MNEMONIC);
+    testWallet = new ethers.Wallet(process.env.PKEY);
     testWallet = testWallet.connect(provider);
 
     // Send faucet eth to dangermoon contract
